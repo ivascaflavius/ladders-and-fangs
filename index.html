@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Ladders &amp; Fangs</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app-root">
+
+    <!-- ===================== MAIN MENU ===================== -->
+    <section id="screen-menu" class="screen active">
+      <div class="panel menu-panel">
+        <h1 class="title">Ladders &amp; Fangs<span class="fang">🐍</span></h1>
+        <p class="subtitle">A strategy twist on Snakes &amp; Ladders</p>
+        <button id="btn-menu-identity" class="identity-chip" type="button" aria-label="Change player name">
+          <span class="identity-avatar" id="menu-identity-avatar">P</span>
+          <span class="identity-text">
+            <span class="identity-label">Playing as</span>
+            <span class="identity-name" id="menu-identity-name">Player</span>
+          </span>
+          <span class="identity-edit">✎</span>
+        </button>
+        <button id="btn-host" class="btn btn-primary btn-menu" type="button"><span class="btn-menu-icon">🎲</span>Host a Game</button>
+        <button id="btn-join" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon">🔗</span>Join a Game</button>
+        <button id="btn-howtoplay" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon">❓</span>How to Play</button>
+        <button id="btn-settings" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon">⚙</span>Settings</button>
+      </div>
+    </section>
+
+    <!-- ===================== HOST WAITING ===================== -->
+    <section id="screen-host-waiting" class="screen">
+      <div class="panel">
+        <h2>Hosting a Game</h2>
+        <p class="hint">Share this code with your opponent:</p>
+        <div id="room-code-display" class="room-code" aria-live="polite">-----</div>
+        <p class="hint waiting-dots">Waiting for opponent<span class="dots">...</span></p>
+        <button id="btn-cancel-host" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+    </section>
+
+    <!-- ===================== JOIN ENTER CODE ===================== -->
+    <section id="screen-join-enter" class="screen">
+      <div class="panel">
+        <h2>Join a Game</h2>
+        <p class="hint">Enter the room code your opponent shared:</p>
+        <input id="join-code-input" class="code-input" type="text" inputmode="text" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="ABCDE" />
+        <button id="btn-join-submit" class="btn btn-primary" type="button">Join</button>
+        <button id="btn-cancel-join" class="btn btn-ghost" type="button">Back</button>
+      </div>
+    </section>
+
+    <!-- ===================== JOIN CONNECTING ===================== -->
+    <section id="screen-join-connecting" class="screen">
+      <div class="panel">
+        <h2>Connecting…</h2>
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="hint">Looking for room <strong id="join-connecting-code"></strong></p>
+        <button id="btn-cancel-connecting" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+    </section>
+
+    <!-- ===================== JOIN TIMEOUT / ERROR ===================== -->
+    <section id="screen-join-timeout" class="screen">
+      <div class="panel">
+        <h2>Couldn't find that game</h2>
+        <p class="hint">Double check the code and try again.</p>
+        <button id="btn-join-retry" class="btn btn-primary" type="button">Try Again</button>
+        <button id="btn-join-timeout-back" class="btn btn-ghost" type="button">Back to Menu</button>
+      </div>
+    </section>
+
+    <!-- ===================== GAME SCREEN ===================== -->
+    <section id="screen-game" class="screen">
+      <div class="game-layout">
+        <header class="game-header">
+          <button id="btn-pause" class="icon-btn" type="button" aria-label="Menu">☰</button>
+          <div class="turn-indicator" id="turn-indicator">—</div>
+          <div class="game-stats" id="game-stats">
+            <span class="game-stat"><span class="game-stat-icon">🔁</span><span id="stat-turn">Turn 1</span></span>
+            <span class="game-stat"><span class="game-stat-icon">⏱</span><span id="stat-time">0:00</span></span>
+          </div>
+          <div class="players-strip">
+            <div class="player-chip" id="chip-me">
+              <span class="chip-name" id="chip-me-name">You</span>
+              <span class="chip-cards" id="chip-me-cards"></span>
+            </div>
+            <div class="player-chip" id="chip-opp">
+              <span class="chip-name" id="chip-opp-name">Opponent</span>
+              <span class="chip-cards" id="chip-opp-cards"></span>
+            </div>
+          </div>
+        </header>
+
+        <div class="board-wrap">
+          <div id="board" class="board" role="grid" aria-label="Game board"></div>
+        </div>
+
+        <footer class="game-footer">
+          <div id="token-leaderboard" class="token-leaderboard" aria-label="Token positions"></div>
+          <div class="controls-row">
+            <button id="btn-roll" class="btn btn-primary die-btn" type="button">
+              <span id="die-face">🎲</span>
+              <span id="die-label">Roll</span>
+            </button>
+            <div id="roll-timer" class="roll-timer hidden">⏳ 30s</div>
+            <div id="card-hand" class="card-hand" aria-label="Your cards"></div>
+            <button id="btn-howtoplay-ingame" class="icon-btn" type="button" aria-label="How to play">❓</button>
+            <button id="btn-log" class="icon-btn" type="button" aria-label="Event log">📜</button>
+            <button id="btn-quit" class="icon-btn icon-btn-danger" type="button" aria-label="Quit game">✕</button>
+          </div>
+        </footer>
+      </div>
+
+      <!-- event log (modal) -->
+      <div id="log-modal" class="overlay hidden">
+        <div class="overlay-panel log-modal-panel">
+          <h2>📜 Event Log</h2>
+          <div id="event-log" class="event-log" aria-live="polite"></div>
+          <button id="btn-log-close" class="btn btn-primary" type="button">Close</button>
+        </div>
+      </div>
+
+      <!-- centered dice roll / token choice modal -->
+      <div id="dice-modal" class="overlay hidden">
+        <div class="overlay-panel dice-modal-panel">
+          <div id="dice-modal-face" class="dice-modal-face">🎲</div>
+          <div id="dice-modal-result" class="dice-modal-result"></div>
+          <div id="dice-modal-tokens" class="dice-modal-tokens hidden"></div>
+        </div>
+      </div>
+
+      <!-- large transient event toast -->
+      <div id="event-toast" class="event-toast"></div>
+
+      <!-- shield decision prompt -->
+      <div id="shield-overlay" class="overlay hidden">
+        <div class="overlay-panel">
+          <p>🐍 Your token landed on a fang! Use your Shield?</p>
+          <div class="overlay-actions">
+            <button id="btn-shield-yes" class="btn btn-primary" type="button"><span class="shield-icon-slot"></span>Use Shield</button>
+            <button id="btn-shield-no" class="btn btn-secondary" type="button">🦷 Take the Bite</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- card draw reveal -->
+      <div id="card-reveal" class="overlay hidden">
+        <div class="card-reveal-scene">
+          <div class="card-reveal-flipper" id="card-reveal-flipper">
+            <div class="card-reveal-face card-reveal-back">🃏</div>
+            <div class="card-reveal-face card-reveal-front" id="card-reveal-front"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- swap card target picker -->
+      <div id="swap-overlay" class="overlay hidden">
+        <div class="overlay-panel">
+          <h2>🔀 Swap Tokens</h2>
+          <div id="swap-choice-buttons" class="swap-choice-buttons"></div>
+          <button id="btn-swap-cancel" class="btn btn-ghost" type="button">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAUSE MENU ===================== -->
+    <section id="screen-pause" class="screen">
+      <div class="panel">
+        <h2>Paused</h2>
+        <button id="btn-resume" class="btn btn-primary" type="button">Resume</button>
+        <button id="btn-pause-settings" class="btn btn-secondary" type="button">⚙ Settings</button>
+        <button id="btn-abandon" class="btn btn-danger" type="button">Leave Match</button>
+      </div>
+    </section>
+
+    <!-- ===================== GAME OVER ===================== -->
+    <section id="screen-game-over" class="screen">
+      <div class="panel">
+        <h2 id="game-over-title">Game Over</h2>
+        <div id="game-over-stats" class="game-over-stats"></div>
+        <button id="btn-back-to-menu" class="btn btn-primary" type="button">Back to Menu</button>
+      </div>
+    </section>
+
+    <!-- ===================== SETTINGS (modal, overlays any screen) ===================== -->
+    <div id="settings-modal" class="overlay hidden">
+      <div class="overlay-panel settings-panel">
+        <h2>Settings</h2>
+        <label class="settings-row">
+          <span class="settings-row-label"><span class="settings-icon">🧑</span>Player Name</span>
+          <input id="settings-name" type="text" maxlength="16" placeholder="Player" />
+        </label>
+        <label class="settings-row toggle-row">
+          <span class="settings-row-label"><span class="settings-icon">🔊</span>Sound</span>
+          <input id="settings-sound" type="checkbox" />
+        </label>
+        <label class="settings-row toggle-row">
+          <span class="settings-row-label"><span class="settings-icon">📳</span>Haptics</span>
+          <input id="settings-haptics" type="checkbox" />
+        </label>
+        <button id="btn-settings-close" class="btn btn-primary" type="button">Done</button>
+      </div>
+    </div>
+
+    <!-- ===================== DISCONNECT OVERLAY ===================== -->
+    <div id="disconnect-overlay" class="overlay hidden">
+      <div class="overlay-panel">
+        <p id="disconnect-message">Opponent disconnected — waiting to reconnect…</p>
+        <div class="spinner" aria-hidden="true"></div>
+        <button id="btn-abandon-disconnected" class="btn btn-danger" type="button">End Match</button>
+      </div>
+    </div>
+
+    <!-- ===================== HOW TO PLAY (modal, overlays any screen) ===================== -->
+    <div id="howtoplay-modal" class="overlay hidden">
+      <div class="overlay-panel howtoplay-panel">
+        <h2>How to Play</h2>
+        <div class="howtoplay-body">
+          <p>Each player controls <strong>2 tokens</strong>, both starting off-board. Roll a die, then choose which token to move — that choice is the game.</p>
+          <p>A token can't overshoot square 100; it must land exactly on it.</p>
+          <p>Land exactly on an opponent's token to send it back to start — unless that square is <strong class="hl-safe">safe</strong> (ladder bottoms, snake heads, and square 1).</p>
+          <p>You can't stack your own two tokens on one square.</p>
+          <p>Land on a <strong class="hl-card">card square</strong> 🃏 to draw a power-up (max 2 held):</p>
+          <ul>
+            <li><svg class="shield-icon" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="htpShieldGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f1f3f7"/><stop offset="45%" stop-color="#b7bcc9"/><stop offset="100%" stop-color="#7d828f"/></linearGradient></defs><path fill="url(#htpShieldGrad)" stroke="#5a5e69" stroke-width="0.6" d="M12 2.2l7.5 3v5.6c0 5.3-3.3 9.2-7.5 10.9-4.2-1.7-7.5-5.6-7.5-10.9V5.2l7.5-3z"/></svg> <strong>Shield</strong> — automatic/reactive. You don't tap it — it kicks in on its own the moment one of your tokens would be bitten by a snake, keeping the token in place instead of sliding down.</li>
+            <li>🔀 <strong>Swap</strong> — tap it on your turn <em>instead of</em> rolling; pick one of your tokens and one opponent token to swap positions.</li>
+            <li>⏩ <strong>Double Move</strong> — after you roll, it appears as an extra option next to your token choices; pick it to move both your tokens by the roll instead of just one.</li>
+          </ul>
+          <p>A token that reaches square 100 is <strong class="hl-safe">locked in</strong> — it can't be captured or swapped away. First player to get <strong>both</strong> tokens to exactly square 100 wins!</p>
+        </div>
+        <button id="btn-howtoplay-close" class="btn btn-primary" type="button">Got it</button>
+      </div>
+    </div>
+
+    <!-- ===================== GENERIC CONFIRM DIALOG ===================== -->
+    <div id="confirm-modal" class="overlay hidden">
+      <div class="overlay-panel">
+        <p id="confirm-message">Are you sure?</p>
+        <div class="overlay-actions">
+          <button id="btn-confirm-yes" class="btn btn-danger" type="button">Yes</button>
+          <button id="btn-confirm-no" class="btn btn-secondary" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

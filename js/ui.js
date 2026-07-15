@@ -6,25 +6,35 @@
 import BoardData from './board-data.js';
 import Settings from './settings.js';
 import { CARD_TYPES } from './game.js';
+import { Icon } from './icons.js';
 
 // Filled silver shield glyph — used everywhere instead of the outline-style
 // 🛡 emoji so the icon reads consistently across platforms/fonts.
-export const SHIELD_ICON_SVG =
-  '<svg class="shield-icon" viewBox="0 0 24 24" aria-hidden="true">' +
-  '<defs><linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">' +
-  '<stop offset="0%" stop-color="#f1f3f7"/><stop offset="45%" stop-color="#b7bcc9"/>' +
-  '<stop offset="100%" stop-color="#7d828f"/></linearGradient></defs>' +
-  '<path fill="url(#shieldGrad)" stroke="#5a5e69" stroke-width="0.6" ' +
-  'd="M12 2.2l7.5 3v5.6c0 5.3-3.3 9.2-7.5 10.9-4.2-1.7-7.5-5.6-7.5-10.9V5.2l7.5-3z"/>' +
-  '</svg>';
+export const SHIELD_ICON_SVG = Icon.shield;
 
 const CARD_META = {
-  [CARD_TYPES.SHIELD]: { icon: SHIELD_ICON_SVG, label: 'Shield' },
-  [CARD_TYPES.SWAP]: { icon: '🔀', label: 'Swap' },
-  [CARD_TYPES.DOUBLE_MOVE]: { icon: '⏩', label: 'Double' },
+  [CARD_TYPES.SHIELD]: { icon: Icon.shield, label: 'Shield' },
+  [CARD_TYPES.SWAP]: { icon: Icon.swap, label: 'Swap' },
+  [CARD_TYPES.DOUBLE_MOVE]: { icon: Icon.fastForward, label: 'Double' },
 };
 
 const el = (id) => document.getElementById(id);
+
+// Replaces every static `data-icon="name"` placeholder in index.html with its
+// matching SVG at boot — keeps every hand-authored icon defined in one place
+// (icons.js) instead of duplicated as inline markup across the HTML.
+export function initStaticIcons() {
+  document.querySelectorAll('[data-icon]').forEach((node) => {
+    const icon = Icon[node.dataset.icon];
+    if (icon) node.innerHTML = icon;
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 // ---------------------------------------------------------------- screens
 const SCREEN_IDS = [
@@ -238,19 +248,19 @@ export function initBoard() {
     if (ladder) {
       const icon = document.createElement('span');
       icon.className = 'square-icon';
-      icon.textContent = `🪜${ladder.to}`;
+      icon.innerHTML = `${Icon.ladder}<span class="square-icon-num">${ladder.to}</span>`;
       icon.style.color = 'var(--ladder-color)';
       div.appendChild(icon);
     } else if (snake) {
       const icon = document.createElement('span');
       icon.className = 'square-icon';
-      icon.textContent = `🐍${snake.to}`;
+      icon.innerHTML = `${Icon.snake}<span class="square-icon-num">${snake.to}</span>`;
       icon.style.color = 'var(--snake-color)';
       div.appendChild(icon);
     } else if (BoardData.isCardSquare(sq)) {
       const icon = document.createElement('span');
       icon.className = 'square-icon';
-      icon.textContent = '🃏';
+      icon.innerHTML = Icon.card;
       div.appendChild(icon);
     }
 
@@ -488,7 +498,7 @@ function renderCardIcons(container, player, cards, revealActual) {
       span.title = CARD_META[cardType].label;
     } else {
       span.className = 'mini-card mini-card-back';
-      span.textContent = '🎴';
+      span.innerHTML = Icon.cardBack;
       span.title = 'Hidden card';
     }
     container.appendChild(span);
@@ -550,24 +560,32 @@ export function renderLeaderboard(state, myPlayer, oppPlayer) {
     icon.className = `mini-token ${player} idx-${idx}`;
     entry.appendChild(icon);
     const label = document.createElement('span');
-    label.textContent = locked ? '🔒100' : square === 0 ? 'Start' : String(square);
+    label.innerHTML = locked ? `<span class="inline-icon">${Icon.lock}</span>100` : square === 0 ? 'Start' : String(square);
     entry.appendChild(label);
     container.appendChild(entry);
   });
 }
 
 // ---------------------------------------------------------------- cards
+// Two fixed slots, always visible (even empty), so the footer layout never
+// reflows as cards are drawn/played.
 export function renderCardHand(state, myPlayer, onPlayCard) {
-  const hand = el('card-hand');
-  hand.innerHTML = '';
-  state.players[myPlayer].cards.forEach((cardType, idx) => {
-    const meta = CARD_META[cardType];
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'card-chip';
-    chip.innerHTML = `<span class="card-icon">${meta.icon}</span><span>${meta.label}</span>`;
-    chip.addEventListener('click', () => onPlayCard(cardType, idx));
-    hand.appendChild(chip);
+  const cards = state.players[myPlayer].cards;
+  const slots = [el('card-hand').querySelector('[data-slot="0"]'), el('card-hand').querySelector('[data-slot="1"]')];
+  slots.forEach((slot, i) => {
+    const cardType = cards[i];
+    slot.innerHTML = '';
+    slot.onclick = null;
+    if (cardType) {
+      const meta = CARD_META[cardType];
+      slot.className = 'card-slot filled';
+      slot.innerHTML = `<span class="card-icon">${meta.icon}</span>`;
+      slot.title = meta.label;
+      slot.onclick = () => onPlayCard(cardType, i);
+    } else {
+      slot.className = 'card-slot';
+      slot.removeAttribute('title');
+    }
   });
 }
 
@@ -583,7 +601,14 @@ export function renderLog(state) {
   state.log.forEach((entry) => {
     const div = document.createElement('div');
     div.className = entry.text.startsWith('Turn ') ? 'log-entry log-entry-turn' : 'log-entry';
-    div.textContent = entry.text;
+    // A move that lands a token on the finish square (100) is worth calling
+    // out with a lock glyph, since that token is now locked in for good.
+    if (/→ 100\b/.test(entry.text)) {
+      div.classList.add('log-entry-lock');
+      div.innerHTML = `<span class="inline-icon">${Icon.lock}</span><span>${escapeHtml(entry.text)}</span>`;
+    } else {
+      div.textContent = entry.text;
+    }
     logEl.appendChild(div);
   });
   logEl.scrollTop = logEl.scrollHeight;
@@ -595,9 +620,9 @@ export function resetLogTracking() {
 
 // ---------------------------------------------------------------- transient center-screen toast
 let toastTimer = null;
-export function flashEventToast(text) {
+export function flashEventToast(text, iconHtml) {
   const toast = el('event-toast');
-  toast.textContent = text;
+  toast.innerHTML = (iconHtml ? `${iconHtml} ` : '') + escapeHtml(text);
   toast.classList.remove('show');
   void toast.offsetWidth; // restart animation
   toast.classList.add('show');
@@ -606,11 +631,10 @@ export function flashEventToast(text) {
 }
 
 // ---------------------------------------------------------------- dice modal
-const DIE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 let dieTimer = null;
 
 export function openDiceModal() {
-  el('dice-modal-face').textContent = '🎲';
+  el('dice-modal-face').innerHTML = Icon.dice;
   el('dice-modal-face').className = 'dice-modal-face';
   el('dice-modal-result').textContent = '';
   const tokensEl = el('dice-modal-tokens');
@@ -627,7 +651,7 @@ export function isDiceModalOpen() {
 // re-running the animation (e.g. reconnect mid-choice).
 export function setDiceModalResult(value) {
   const face = el('dice-modal-face');
-  face.textContent = DIE_FACES[value - 1];
+  face.innerHTML = Icon.diceFace(value);
   el('dice-modal-result').textContent = `Rolled a ${value}`;
 }
 
@@ -659,13 +683,13 @@ export function animateDiceModal(finalValue, onDone) {
   let ticks = 0;
   const totalTicks = 14;
   dieTimer = setInterval(() => {
-    face.textContent = DIE_FACES[Math.floor(Math.random() * 6)];
+    face.innerHTML = Icon.diceFace(Math.floor(Math.random() * 6) + 1);
     playDieTick();
     ticks++;
     if (ticks > totalTicks) {
       clearInterval(dieTimer);
       dieTimer = null;
-      face.textContent = DIE_FACES[finalValue - 1];
+      face.innerHTML = Icon.diceFace(finalValue);
       face.classList.remove('rolling');
       face.classList.add('landed');
       setTimeout(() => face.classList.remove('landed'), 450);
@@ -703,9 +727,9 @@ export function showDiceModalTokenChoice(options, onChoose, doubleMove) {
     const text = document.createElement('span');
     const fromLabel = opt.from === 0 ? 'Start' : opt.from;
     let destIcon = '';
-    if (opt.type === 'ladder') destIcon = ' 🪜';
-    else if (opt.type === 'snake') destIcon = ' 🐍';
-    else if (BoardData.isCardSquare(opt.to)) destIcon = ' 🃏';
+    if (opt.type === 'ladder') destIcon = ` <span class="inline-icon">${Icon.ladder}</span>`;
+    else if (opt.type === 'snake') destIcon = ` <span class="inline-icon">${Icon.snake}</span>`;
+    else if (BoardData.isCardSquare(opt.to)) destIcon = ` <span class="inline-icon">${Icon.card}</span>`;
     text.innerHTML = `${fromLabel} → ${opt.to}${destIcon}`;
     btn.appendChild(text);
 
@@ -723,7 +747,7 @@ export function showDiceModalTokenChoice(options, onChoose, doubleMove) {
     const dmBtn = document.createElement('button');
     dmBtn.type = 'button';
     dmBtn.className = 'dice-modal-choice dice-modal-choice-card';
-    dmBtn.innerHTML = '<span class="card-icon">⏩</span><span>Play Double Move — move both tokens</span>';
+    dmBtn.innerHTML = `<span class="card-icon">${Icon.fastForward}</span><span>Play Double Move — move both tokens</span>`;
     dmBtn.addEventListener('click', doubleMove.onPlay);
     container.appendChild(dmBtn);
   }
@@ -741,15 +765,57 @@ export function setRollButtonEnabled(enabled, label) {
 }
 
 // remainingSec: null hides the badge entirely (not in the rolling phase).
-export function setRollTimer(remainingSec) {
-  const badge = el('roll-timer');
+// The ring is a rounded-rect <rect>, not a circle, so its perimeter is read
+// directly off the element via getTotalLength() rather than computed by hand.
+let rollRingPerimeter = null;
+
+export function setRollTimer(remainingSec, totalSec = 30) {
+  const ring = el('roll-ring-progress');
+  if (rollRingPerimeter === null) {
+    rollRingPerimeter = ring.getTotalLength();
+    ring.style.strokeDasharray = String(rollRingPerimeter);
+  }
+  if (remainingSec === null || remainingSec === undefined) {
+    ring.style.opacity = '0';
+    return;
+  }
+  ring.style.opacity = '1';
+  const fraction = Math.max(0, Math.min(1, remainingSec / totalSec));
+  ring.style.strokeDashoffset = String(rollRingPerimeter * (1 - fraction));
+  ring.classList.toggle('urgent', remainingSec <= 10);
+}
+
+// Idle-choice countdown shown inside the dice-modal or shield-overlay while
+// waiting on a decision. targetId is 'dice-modal-timer' or 'shield-modal-timer'.
+export function setChoiceTimer(targetId, remainingSec) {
+  const badge = el(targetId);
   if (remainingSec === null || remainingSec === undefined) {
     badge.classList.add('hidden');
     return;
   }
   badge.classList.remove('hidden');
-  badge.textContent = `⏳ ${remainingSec}s`;
+  badge.innerHTML = `${Icon.hourglass} ${remainingSec}s`;
   badge.classList.toggle('urgent', remainingSec <= 10);
+}
+
+// Cycles a highlight through `selector`'s matched elements (in DOM order),
+// slowing down, then lands on chosenIndex — a visible "picking at random"
+// effect before the auto-selected choice is actually applied.
+export async function animateModalRoulette(selector, chosenIndex) {
+  const buttons = Array.from(document.querySelectorAll(selector));
+  if (buttons.length === 0) return;
+  const steps = 16;
+  for (let i = 0; i < steps; i++) {
+    const idx = i % buttons.length;
+    buttons.forEach((b, j) => b.classList.toggle('roulette-active', j === idx));
+    playSound('step');
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(60 + i * 10);
+  }
+  buttons.forEach((b, j) => b.classList.toggle('roulette-active', j === chosenIndex % buttons.length));
+  playSound('card');
+  await sleep(500);
+  buttons.forEach((b) => b.classList.remove('roulette-active'));
 }
 
 // ---------------------------------------------------------------- overlays
@@ -778,7 +844,7 @@ function swapChoiceButton(player, tokenIndex, pos) {
   icon.className = `mini-token ${player} idx-${tokenIndex}`;
   btn.appendChild(icon);
   const text = document.createElement('span');
-  text.textContent = pos === 0 ? 'Start' : locked ? `${pos} 🔒` : `Square ${pos}`;
+  text.innerHTML = pos === 0 ? 'Start' : locked ? `${pos} <span class="inline-icon">${Icon.lock}</span>` : `Square ${pos}`;
   btn.appendChild(text);
   if (locked) {
     btn.disabled = true;
@@ -872,15 +938,17 @@ function formatDuration(ms) {
 }
 
 export function showGameOver(didWin, myName, winnerName, stats) {
-  el('game-over-title').textContent = didWin ? 'You Win! 🏆' : `${winnerName} Wins`;
+  el('game-over-title').innerHTML = didWin
+    ? `You Win! <span class="inline-icon">${Icon.trophy}</span>`
+    : escapeHtml(`${winnerName} Wins`);
 
   const statsEl = el('game-over-stats');
   if (stats) {
     statsEl.innerHTML = `
-      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">⏱</span>Match time</span><strong>${formatDuration(stats.durationMs)}</strong></div>
-      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">🔁</span>Turns played</span><strong>${stats.turns}</strong></div>
-      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">🃏</span>Power-ups used (you)</span><strong>${stats.myCardsPlayed}</strong></div>
-      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">🃏</span>Power-ups used (opponent)</span><strong>${stats.oppCardsPlayed}</strong></div>
+      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">${Icon.stopwatch}</span>Match time</span><strong>${formatDuration(stats.durationMs)}</strong></div>
+      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">${Icon.refresh}</span>Turns played</span><strong>${stats.turns}</strong></div>
+      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">${Icon.card}</span>Power-ups used (you)</span><strong>${stats.myCardsPlayed}</strong></div>
+      <div class="game-over-stat-row"><span><span class="game-over-stat-icon">${Icon.card}</span>Power-ups used (opponent)</span><strong>${stats.oppCardsPlayed}</strong></div>
     `;
   } else {
     statsEl.innerHTML = '';

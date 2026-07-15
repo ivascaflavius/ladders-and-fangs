@@ -43,7 +43,7 @@ npx serve .
 
 - If **both** players refresh or close their tab at the same time, the in-progress match state is lost (only the still-connected peer can re-sync a rejoining one).
 - Both players need to keep their tab open and connected for the match to continue; there's no way to resume a match later from a completely different device/session.
-- Direct P2P (WebRTC) connections may occasionally fail to establish on very restrictive networks (e.g. some corporate firewalls or symmetric NATs) since this project uses no TURN relay server.
+- Direct P2P (WebRTC) connections may occasionally fail to establish, or drop mid-game, on very restrictive networks (e.g. some corporate firewalls, symmetric NATs, or certain cellular/carrier NATs) since this project uses no TURN relay server — only STUN, which can't always broker a connection through the strictest NATs. This has been observed more often on iOS Safari than other browsers. Multiple public STUN servers are configured to improve the odds, but there's no fallback relay if all else fails.
 - The board layout is fixed for v1 (not randomized) — a "Shuffled" mode with a seeded, host-shared random board is planned but not yet implemented (see `js/board-data.js`).
 
 ## License

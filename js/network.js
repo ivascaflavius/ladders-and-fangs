@@ -7,6 +7,21 @@
 const STRATEGY_URL = 'https://esm.sh/trystero@0.20.0/torrent';
 const APP_ID = 'ladders-and-fangs-v1';
 
+// Several independent public STUN servers instead of relying on Trystero's
+// single default — improves the odds of successful ICE candidate gathering
+// on stricter NATs (this project has no TURN server, so very restrictive
+// networks — some carrier-grade/symmetric NATs, common on cellular and some
+// iOS/Safari setups — may still fail to establish a direct P2P connection;
+// see README's Known Limitations).
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+  ],
+};
+
 // How long a joining client waits for the host to appear before giving up.
 export const JOIN_TIMEOUT_MS = 25000;
 // How long we wait after a peer leaves before treating the match as abandoned.
@@ -85,7 +100,7 @@ class NetworkRoom {
 
 export async function joinNetworkRoom(roomCode) {
   const { joinRoom, selfId } = await loadStrategy();
-  const room = joinRoom({ appId: APP_ID }, roomCode);
+  const room = joinRoom({ appId: APP_ID, rtcConfig: RTC_CONFIG }, roomCode);
   return new NetworkRoom(room, selfId, roomCode);
 }
 

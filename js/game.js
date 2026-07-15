@@ -15,6 +15,11 @@ export const CARD_TYPES = Object.freeze({
 
 export const MAX_CARDS = 2;
 const CARD_POOL = [CARD_TYPES.SHIELD, CARD_TYPES.SWAP, CARD_TYPES.DOUBLE_MOVE];
+const CARD_LABELS = {
+  [CARD_TYPES.SHIELD]: 'Shield',
+  [CARD_TYPES.SWAP]: 'Swap',
+  [CARD_TYPES.DOUBLE_MOVE]: 'Double Move',
+};
 
 export const Phase = Object.freeze({
   ROLLING: 'rolling',
@@ -42,7 +47,12 @@ function drawRandomCardType() {
 function computeCardDraw(state, player, square) {
   if (!BoardData.isCardSquare(square)) return null;
   if (state.players[player].cards.length >= MAX_CARDS) return null;
-  return drawRandomCardType();
+  // Double Move is a dead draw once a token is already locked in at 100 (it
+  // can never move again), so it's excluded from the pool for that player —
+  // no point handing them a card that does nothing.
+  const hasLockedToken = state.players[player].tokens.includes(BoardData.LAST_SQUARE);
+  const pool = hasLockedToken ? CARD_POOL.filter((c) => c !== CARD_TYPES.DOUBLE_MOVE) : CARD_POOL;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 export function createInitialState(hostName, guestName) {
@@ -96,7 +106,12 @@ export function isLegalTokenMove(state, player, tokenIndex, roll) {
   if (dest > BoardData.LAST_SQUARE) return false;
   const otherIdx = tokenIndex === 0 ? 1 : 0;
   const otherPos = tokens[otherIdx];
-  if (dest !== 0 && dest === otherPos) return false; // can't stack own tokens
+  // Square 100 is exempt from the self-stack rule — it's the shared finish
+  // line, both of a player's tokens are meant to end up there together to
+  // win. Without this exemption, once one token finishes, the other could
+  // never land on 100 either (permanently blocked as a "self-stack"),
+  // making the match unwinnable.
+  if (dest !== 0 && dest === otherPos && dest !== BoardData.LAST_SQUARE) return false;
   return true;
 }
 
@@ -138,7 +153,7 @@ export function prepareRollEvent(state, player) {
   return { type: 'ROLL', player, value: rollDie() };
 }
 
-export function prepareChooseTokenEvent(state, player, tokenIndex) {
+export function prepareChooseTokenEvent(state, player, tokenIndex, auto = false) {
   const roll = state.lastRoll;
   const pos = state.players[player].tokens[tokenIndex];
   const dest = pos + roll;
@@ -147,10 +162,11 @@ export function prepareChooseTokenEvent(state, player, tokenIndex) {
     type: 'CHOOSE_TOKEN',
     player,
     queue: [{ tokenIndex, roll, cardDraw }],
+    auto,
   };
 }
 
-export function prepareDoubleMoveEvent(state, player) {
+export function prepareDoubleMoveEvent(state, player, auto = false) {
   const roll = state.lastRoll;
   const tokens = state.players[player].tokens;
   const queue = [0, 1]
@@ -159,15 +175,15 @@ export function prepareDoubleMoveEvent(state, player) {
       const dest = tokens[tokenIndex] + roll;
       return { tokenIndex, roll, cardDraw: computeCardDraw(state, player, dest) };
     });
-  return { type: 'PLAY_DOUBLE_MOVE', player, queue };
+  return { type: 'PLAY_DOUBLE_MOVE', player, queue, auto };
 }
 
 export function prepareSwapEvent(state, player, myTokenIndex, oppTokenIndex) {
   return { type: 'PLAY_SWAP', player, myTokenIndex, oppTokenIndex };
 }
 
-export function prepareShieldDecisionEvent(state, player, useShield) {
-  return { type: 'SHIELD_DECISION', player, useShield };
+export function prepareShieldDecisionEvent(state, player, useShield, auto = false) {
+  return { type: 'SHIELD_DECISION', player, useShield, auto };
 }
 
 export function prepareForfeitEvent(state, player) {
@@ -189,7 +205,7 @@ export function reduce(state, event) {
     case 'ROLL':
       return applyRoll(state, event);
     case 'CHOOSE_TOKEN':
-      return startResolvingQueue(state, event.player, event.queue);
+      return startResolvingQueue(state, event.player, event.queue, event.auto);
     case 'PLAY_DOUBLE_MOVE':
       return applyDoubleMove(state, event);
     case 'PLAY_SWAP':
@@ -225,6 +241,7 @@ function applyRoll(state, event) {
 function applyForfeitTurn(state, event) {
   const next = clone(state);
   if (next.turn !== event.player || next.phase !== Phase.ROLLING) return next;
+  pushLog(next, `Turn ${next.stats.turns + 1} — ${next.players[event.player].name}`);
   pushLog(next, `${next.players[event.player].name} ran out of time and forfeits the turn.`);
   return endTurn(next);
 }
@@ -239,7 +256,7 @@ function applyDoubleMove(state, event) {
     pushLog(next, `${next.players[player].name} has no legal move for either token.`);
     return endTurn(next);
   }
-  return startResolvingQueue(next, player, event.queue);
+  return startResolvingQueue(next, player, event.queue, event.auto);
 }
 
 function applySwap(state, event) {
@@ -268,11 +285,12 @@ function applySwap(state, event) {
 // Starts (or continues) working through a queue of {tokenIndex, roll, cardDraw}
 // moves for `player`, pausing in SHIELD_DECISION phase if a move lands on a
 // snake while the player holds a shield.
-function startResolvingQueue(state, player, queue) {
+function startResolvingQueue(state, player, queue, auto) {
   let next = clone(state);
   next.pending = { player, queue };
   next.moveTrace = [];
   next.moveTraceId = (state.moveTraceId || 0) + 1;
+  if (auto) pushLog(next, `${next.players[player].name} took too long to decide — a random choice was made.`);
   return resolveNextInQueue(next);
 }
 
@@ -293,7 +311,7 @@ function resolveNextInQueue(state) {
   if (ladder) {
     tokens[move.tokenIndex] = ladder.to;
     pushTrace(next, { kind: 'ladder', player, tokenIndex: move.tokenIndex, from: dest, to: ladder.to });
-    pushLog(next, `${next.players[player].name}'s token climbed a ladder to ${ladder.to}!`);
+    pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} climbed a ladder ${dest} → ${ladder.to}!`);
     return finishMoveStep(next, player, move.tokenIndex, rest);
   }
 
@@ -308,17 +326,17 @@ function resolveNextInQueue(state) {
         queue: rest,
         shieldChoice: { tokenIndex: move.tokenIndex, tailSquare: snake.to },
       };
-      pushLog(next, `${next.players[player].name}'s token met a fang at ${dest}! Use Shield?`);
+      pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} met a fang at ${dest}! Use Shield?`);
       return next;
     }
     tokens[move.tokenIndex] = snake.to;
     pushTrace(next, { kind: 'snake', player, tokenIndex: move.tokenIndex, from: dest, to: snake.to });
-    pushLog(next, `${next.players[player].name}'s token was bitten and slid to ${snake.to}!`);
+    pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} was bitten and slid ${dest} → ${snake.to}!`);
     return finishMoveStep(next, player, move.tokenIndex, rest);
   }
 
   tokens[move.tokenIndex] = dest;
-  pushLog(next, `${next.players[player].name} moved to ${dest}.`);
+  pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} moved ${from} → ${dest}.`);
   return finishMoveStep(next, player, move.tokenIndex, rest, move.cardDraw);
 }
 
@@ -342,7 +360,7 @@ function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw) {
     if (next.players[player].cards.length < MAX_CARDS) {
       next.players[player].cards.push(cardDraw);
       pushTrace(next, { kind: 'card', player, tokenIndex, cardType: cardDraw, at: square });
-      pushLog(next, `${next.players[player].name} drew a card!`);
+      pushLog(next, `${next.players[player].name} drew a ${CARD_LABELS[cardDraw]} card!`);
     }
   }
 
@@ -368,18 +386,20 @@ function applyShieldDecision(state, event) {
   const rest = pending.queue;
   const headSquare = next.players[player].tokens[tokenIndex];
 
+  if (event.auto) pushLog(next, `${next.players[player].name} took too long to decide — a random choice was made.`);
+
   if (event.useShield) {
     next.players[player].cards = removeOneCard(next.players[player].cards, CARD_TYPES.SHIELD);
     next.stats.cardsPlayed[player]++;
     pushTrace(next, { kind: 'shieldSave', player, tokenIndex, at: headSquare });
-    pushLog(next, `${next.players[player].name} used a Shield to survive the fang!`);
+    pushLog(next, `${next.players[player].name} used a Shield — Token ${tokenIndex + 1} survived the fang!`);
     next.phase = Phase.CHOOSE_TOKEN;
     return finishMoveStep(next, player, tokenIndex, rest);
   }
 
   next.players[player].tokens[tokenIndex] = tailSquare;
   pushTrace(next, { kind: 'snake', player, tokenIndex, from: headSquare, to: tailSquare });
-  pushLog(next, `${next.players[player].name}'s token slid to ${tailSquare}.`);
+  pushLog(next, `${next.players[player].name}: Token ${tokenIndex + 1} slid ${headSquare} → ${tailSquare}.`);
   next.phase = Phase.CHOOSE_TOKEN;
   return finishMoveStep(next, player, tokenIndex, rest);
 }

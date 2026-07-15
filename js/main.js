@@ -13,6 +13,7 @@ import {
 } from './network.js';
 import * as Game from './game.js';
 import * as UI from './ui.js';
+import { Icon } from './icons.js';
 
 const SESSION_KEY = 'laddersAndFangs.session.v1';
 
@@ -201,6 +202,7 @@ function abandonMatch() {
   clearDisconnectTimer();
   stopGameTimer();
   stopRollTimer();
+  stopChoiceTimer();
   UI.hideDisconnectOverlay();
   resetNetwork();
   gameState = null;
@@ -335,6 +337,92 @@ function stopRollTimer() {
   UI.setRollTimer(null);
 }
 
+// Idle-choice timer: when it's my turn and I'm sitting on a token-choice
+// (incl. Double Move) or shield decision without acting, a 30s countdown
+// runs in that modal. On timeout, a random valid option is picked — with a
+// visible "cycling through the choices" roulette effect first — and it's
+// logged/toasted as an auto-pick so both players understand what happened.
+const CHOICE_TIME_LIMIT_SEC = 30;
+let choiceTimerInterval = null;
+let choiceTimerDeadline = null;
+let choiceTimerKey = null;
+let choiceTimerTarget = null; // 'dice-modal-timer' | 'shield-modal-timer'
+
+function updateChoiceTimer() {
+  const tokenChoiceOpen = gameState && isMyTurn() && gameState.phase === Game.Phase.CHOOSE_TOKEN && UI.isDiceModalOpen();
+  const shieldChoiceOpen = gameState && gameState.phase === Game.Phase.SHIELD_DECISION
+    && gameState.pending && gameState.pending.player === myPlayer;
+
+  if (!tokenChoiceOpen && !shieldChoiceOpen) {
+    stopChoiceTimer();
+    return;
+  }
+
+  const target = tokenChoiceOpen ? 'dice-modal-timer' : 'shield-modal-timer';
+  const key = tokenChoiceOpen
+    ? `choice-${gameState.moveTraceId}`
+    : `shield-${gameState.moveTraceId}-${gameState.pending.queue.length}`;
+
+  if (key !== choiceTimerKey) {
+    choiceTimerKey = key;
+    choiceTimerTarget = target;
+    choiceTimerDeadline = Date.now() + CHOICE_TIME_LIMIT_SEC * 1000;
+    if (choiceTimerInterval) clearInterval(choiceTimerInterval);
+    choiceTimerInterval = setInterval(tickChoiceTimer, 250);
+  }
+  tickChoiceTimer();
+}
+
+function tickChoiceTimer() {
+  const remainingMs = choiceTimerDeadline - Date.now();
+  const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+  UI.setChoiceTimer(choiceTimerTarget, remainingSec);
+  if (remainingMs <= 0) {
+    const target = choiceTimerTarget;
+    stopChoiceTimer();
+    resolveChoiceTimeout(target);
+  }
+}
+
+function stopChoiceTimer() {
+  if (choiceTimerInterval) {
+    clearInterval(choiceTimerInterval);
+    choiceTimerInterval = null;
+  }
+  if (choiceTimerTarget) UI.setChoiceTimer(choiceTimerTarget, null);
+  choiceTimerKey = null;
+  choiceTimerTarget = null;
+}
+
+async function resolveChoiceTimeout(target) {
+  if (!gameState) return;
+
+  if (target === 'dice-modal-timer' && gameState.phase === Game.Phase.CHOOSE_TOKEN && isMyTurn()) {
+    const legal = Game.legalTokenIndices(gameState, myPlayer, gameState.lastRoll);
+    const hasDoubleMove = gameState.players[myPlayer].cards.includes(Game.CARD_TYPES.DOUBLE_MOVE);
+    const options = [...legal.map((idx) => ({ kind: 'token', idx })), ...(hasDoubleMove ? [{ kind: 'double' }] : [])];
+    if (options.length === 0) return;
+    const chosenPos = Math.floor(Math.random() * options.length);
+    const chosen = options[chosenPos];
+    await UI.animateModalRoulette('#dice-modal-tokens .dice-modal-choice', chosenPos);
+    UI.closeDiceModal();
+    if (chosen.kind === 'double') {
+      playDoubleMove(true);
+    } else {
+      onTokenTap(myPlayer, chosen.idx, true);
+    }
+    return;
+  }
+
+  if (target === 'shield-modal-timer' && gameState.phase === Game.Phase.SHIELD_DECISION
+    && gameState.pending && gameState.pending.player === myPlayer) {
+    const useShield = Math.random() < 0.5;
+    await UI.animateModalRoulette('#shield-overlay .btn', useShield ? 0 : 1);
+    const event = Game.prepareShieldDecisionEvent(gameState, myPlayer, useShield, true);
+    applyAndMaybeBroadcast(event, true);
+  }
+}
+
 function enterGameScreen() {
   // Skip past any history already in the synced state so reconnecting/joining
   // doesn't replay every past event's sound/toast/move-animation at once.
@@ -366,15 +454,18 @@ function announceLogEvents() {
     } else if (text.includes('climbed a ladder')) {
       UI.playSound('ladder');
       UI.haptic('move');
-    } else if (text.includes('bitten') || text.includes('slid to')) {
+    } else if (text.includes('bitten') || text.includes('slid')) {
       UI.playSound('snake');
       UI.haptic('capture');
-    } else if (text.includes('drew a card') || text.includes('played')) {
+    } else if (text.includes('drew a') || text.includes('played')) {
       UI.playSound('card');
       UI.haptic('card');
     }
   });
-  UI.flashEventToast(newEntries[newEntries.length - 1].text);
+  // Surface the "took too long" auto-pick note if present in this batch —
+  // it's the more noteworthy event even if it's not the last log line.
+  const autoPickEntry = newEntries.find((e) => e.text.includes('took too long'));
+  UI.flashEventToast(autoPickEntry ? autoPickEntry.text : newEntries[newEntries.length - 1].text);
   lastAnnouncedLogLen = gameState.log.length;
 }
 
@@ -413,11 +504,11 @@ function renderGame() {
         ...Game.previewMove(gameState, myPlayer, idx, gameState.lastRoll),
       }));
       const doubleMove = hasDoubleMove
-        ? { onPlay: () => { UI.closeDiceModal(); playDoubleMove(); } }
+        ? { onPlay: () => { stopChoiceTimer(); UI.closeDiceModal(); playDoubleMove(); } }
         : null;
       UI.showDiceModalTokenChoice(
         options,
-        (tokenIndex) => { UI.closeDiceModal(); onTokenTap(myPlayer, tokenIndex); },
+        (tokenIndex) => { stopChoiceTimer(); UI.closeDiceModal(); onTokenTap(myPlayer, tokenIndex); },
         doubleMove,
       );
     } else {
@@ -434,12 +525,14 @@ function renderGame() {
     gameState.pending.player === myPlayer
   ) {
     UI.showShieldOverlay((useShield) => {
+      stopChoiceTimer();
       const event = Game.prepareShieldDecisionEvent(gameState, myPlayer, useShield);
       applyAndMaybeBroadcast(event, true);
     });
   } else {
     UI.hideOverlay('shield-overlay');
   }
+  updateChoiceTimer();
 
   if (gameState.phase === Game.Phase.GAME_OVER) {
     const didWin = gameState.winner === myPlayer;
@@ -456,9 +549,9 @@ function renderGame() {
   }
 }
 
-function onTokenTap(player, tokenIndex) {
+function onTokenTap(player, tokenIndex, auto = false) {
   if (player !== myPlayer || !isMyTurn() || gameState.phase !== Game.Phase.CHOOSE_TOKEN) return;
-  const event = Game.prepareChooseTokenEvent(gameState, myPlayer, tokenIndex);
+  const event = Game.prepareChooseTokenEvent(gameState, myPlayer, tokenIndex, auto);
   UI.playSound('move');
   UI.haptic('move');
   applyAndMaybeBroadcast(event, true);
@@ -487,7 +580,7 @@ function onPlayCard(cardType, _cardIdx) {
 
   if (cardType === Game.CARD_TYPES.DOUBLE_MOVE) {
     if (gameState.phase !== Game.Phase.CHOOSE_TOKEN) {
-      UI.flashEventToast('⏩ Double Move: roll first, then pick it from the roll popup');
+      UI.flashEventToast('Double Move: roll first, then pick it from the roll popup', Icon.fastForward);
       return;
     }
     playDoubleMove();
@@ -495,14 +588,14 @@ function onPlayCard(cardType, _cardIdx) {
   }
 
   if (cardType === Game.CARD_TYPES.SHIELD) {
-    UI.flashEventToast('🛡 Shield activates automatically when a snake bites you');
+    UI.flashEventToast('Shield activates automatically when a snake bites you', Icon.shield);
     return;
   }
 }
 
-function playDoubleMove() {
+function playDoubleMove(auto = false) {
   if (!isMyTurn() || gameState.phase !== Game.Phase.CHOOSE_TOKEN) return;
-  const event = Game.prepareDoubleMoveEvent(gameState, myPlayer);
+  const event = Game.prepareDoubleMoveEvent(gameState, myPlayer, auto);
   UI.playSound('card');
   UI.haptic('card');
   applyAndMaybeBroadcast(event, true);
@@ -585,6 +678,7 @@ function bindGameScreen() {
   el('btn-back-to-menu').addEventListener('click', () => {
     stopGameTimer();
     stopRollTimer();
+    stopChoiceTimer();
     resetNetwork();
     gameState = null;
     clearSession();
@@ -600,6 +694,7 @@ function bindSettingsModal() {
 
 // ---------------------------------------------------------------- boot
 function boot() {
+  UI.initStaticIcons();
   UI.initBoard();
   bindMenu();
   bindGameScreen();

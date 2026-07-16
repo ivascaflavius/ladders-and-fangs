@@ -458,6 +458,7 @@ export function renderTraps(state, myPlayer) {
     if (!node) continue;
     const owner = state.traps ? state.traps[sq] : undefined;
     const shouldShow = owner === myPlayer;
+    node.classList.toggle('trap-owned', shouldShow);
     let marker = node.querySelector('.trap-marker-icon');
     if (shouldShow && !marker) {
       marker = document.createElement('span');
@@ -896,13 +897,23 @@ export function showDiceModalTokenChoice(options, onChoose, doubleMove) {
     const dmBtn = document.createElement('button');
     dmBtn.type = 'button';
     dmBtn.className = 'dice-modal-choice dice-modal-choice-card';
-    // With a token locked at 100, Double Move sends the remaining token
-    // roll×2 instead of moving both — the label must say which one applies.
-    const dmLabel = doubleMove.locked
-      ? 'Play Double Move — move your token twice'
-      : 'Play Double Move — move both tokens';
-    dmBtn.innerHTML = `<span class="card-icon">${Icon.fastForward}</span><span>${dmLabel}</span>`;
-    dmBtn.addEventListener('click', doubleMove.onPlay);
+    if (doubleMove.disabled) {
+      // With a token locked at 100, roll×2 on the other token can overshoot
+      // 100 (e.g. 99 + 1×2 = 101) — the card would still be spent for
+      // nothing if played, so the button is shown but disabled instead of
+      // silently wasting it.
+      dmBtn.disabled = true;
+      dmBtn.classList.add('dice-modal-choice-locked');
+      dmBtn.innerHTML = `<span class="card-icon">${Icon.fastForward}</span><span>Double Move — would overshoot 100</span>`;
+    } else {
+      // With a token locked at 100, Double Move sends the remaining token
+      // roll×2 instead of moving both — the label must say which one applies.
+      const dmLabel = doubleMove.locked
+        ? 'Play Double Move — move your token twice'
+        : 'Play Double Move — move both tokens';
+      dmBtn.innerHTML = `<span class="card-icon">${Icon.fastForward}</span><span>${dmLabel}</span>`;
+      dmBtn.addEventListener('click', doubleMove.onPlay);
+    }
     container.appendChild(dmBtn);
   }
 }

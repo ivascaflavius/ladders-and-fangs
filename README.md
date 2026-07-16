@@ -15,7 +15,7 @@ A strategy twist on Snakes & Ladders, playable P2P with a friend — no server r
   - 🛡 **Shield** — cancels a snake bite when it happens, keeping your token in place.
   - 🔀 **Swap** — play instead of rolling; swap one of your tokens with any opponent token.
   - ⏩ **Double Move** — play right after rolling; move *both* of your tokens by the roll instead of just one. If one of your tokens is already locked in at 100, it instead sends your other token twice as far (roll × 2).
-  - 🪤 **Trap** — play instead of rolling; pick an empty, ordinary square to rig. If your opponent's token lands there, it gets knocked back a few squares. Shield doesn't block it (Shield only stops snakes). Traps are hidden — you only ever see your own on the board, never your opponent's, until one springs.
+  - 🪤 **Trap** — play instead of rolling; pick an empty, ordinary square to rig. If your opponent's token lands there, a die is rolled and it's knocked back that many squares ×5 (5-30 squares — a real threat, not a minor setback). Shield doesn't block it (Shield only stops snakes). Traps are hidden — you only ever see your own on the board, never your opponent's, until one springs.
 - First player to get **both** tokens to exactly square 100 wins.
 - Landing on a card square with a full hand (max 2 cards) still gets an acknowledgment — a log line and a quick toast — instead of silently doing nothing.
 

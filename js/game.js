@@ -23,8 +23,9 @@ const CARD_LABELS = {
   [CARD_TYPES.TRAP]: 'Trap',
 };
 
-// How many squares a trap knocks a token back when triggered.
-const TRAP_SETBACK = 4;
+// A trap's setback is a fresh die roll (1-6) times this multiplier — a 5-30
+// square knockback, randomized per trigger instead of a flat amount.
+const TRAP_SETBACK_MULTIPLIER = 5;
 
 export const Phase = Object.freeze({
   ROLLING: 'rolling',
@@ -177,10 +178,14 @@ export function prepareChooseTokenEvent(state, player, tokenIndex, auto = false)
   const pos = state.players[player].tokens[tokenIndex];
   const dest = pos + roll;
   const cardDraw = computeCardDraw(state, player, dest);
+  // Speculatively rolled regardless of whether this move actually lands on a
+  // trap — same pattern as cardDraw above — so the reducer never calls
+  // Math.random() itself and both peers stay in sync.
+  const trapRoll = rollDie();
   return {
     type: 'CHOOSE_TOKEN',
     player,
-    queue: [{ tokenIndex, roll, cardDraw }],
+    queue: [{ tokenIndex, roll, cardDraw, trapRoll }],
     auto,
   };
 }
@@ -208,7 +213,7 @@ export function prepareDoubleMoveEvent(state, player, auto = false) {
     const otherIdx = lockedIdx === 0 ? 1 : 0;
     const dest = tokens[otherIdx] + roll * 2;
     const queue = dest <= BoardData.LAST_SQUARE
-      ? [{ tokenIndex: otherIdx, roll: roll * 2, cardDraw: computeCardDraw(state, player, dest) }]
+      ? [{ tokenIndex: otherIdx, roll: roll * 2, cardDraw: computeCardDraw(state, player, dest), trapRoll: rollDie() }]
       : [];
     return { type: 'PLAY_DOUBLE_MOVE', player, queue, auto };
   }
@@ -216,7 +221,7 @@ export function prepareDoubleMoveEvent(state, player, auto = false) {
     .filter((i) => tokens[i] + roll <= BoardData.LAST_SQUARE)
     .map((tokenIndex) => {
       const dest = tokens[tokenIndex] + roll;
-      return { tokenIndex, roll, cardDraw: computeCardDraw(state, player, dest) };
+      return { tokenIndex, roll, cardDraw: computeCardDraw(state, player, dest), trapRoll: rollDie() };
     });
   return { type: 'PLAY_DOUBLE_MOVE', player, queue, auto };
 }
@@ -225,8 +230,8 @@ export function prepareSwapEvent(state, player, myTokenIndex, oppTokenIndex) {
   return { type: 'PLAY_SWAP', player, myTokenIndex, oppTokenIndex };
 }
 
-export function prepareTrapEvent(state, player, square) {
-  return { type: 'PLAY_TRAP', player, square };
+export function prepareTrapEvent(state, player, square, auto = false) {
+  return { type: 'PLAY_TRAP', player, square, auto };
 }
 
 export function prepareShieldDecisionEvent(state, player, useShield, auto = false) {
@@ -343,6 +348,7 @@ function applyPlayTrap(state, event) {
   pushLog(next, `Turn ${next.stats.turns + 1} — ${next.players[player].name}`);
   next.players[player].cards = removeOneCard(next.players[player].cards, CARD_TYPES.TRAP);
   next.stats.cardsPlayed[player]++;
+  if (event.auto) pushLog(next, `${next.players[player].name} took too long to decide — a random square was picked.`);
   if (isTrapPlaceable(next, event.square)) {
     next.traps = { ...next.traps, [event.square]: player };
     pushLog(next, `${next.players[player].name} set a trap somewhere on the board!`);
@@ -382,7 +388,7 @@ function resolveNextInQueue(state) {
     tokens[move.tokenIndex] = ladder.to;
     pushTrace(next, { kind: 'ladder', player, tokenIndex: move.tokenIndex, from: dest, to: ladder.to });
     pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} climbed a ladder ${dest} → ${ladder.to}!`);
-    return finishMoveStep(next, player, move.tokenIndex, rest);
+    return finishMoveStep(next, player, move.tokenIndex, rest, undefined, move.trapRoll);
   }
 
   const snake = BoardData.getSnake(dest);
@@ -394,7 +400,7 @@ function resolveNextInQueue(state) {
       next.pending = {
         player,
         queue: rest,
-        shieldChoice: { tokenIndex: move.tokenIndex, tailSquare: snake.to },
+        shieldChoice: { tokenIndex: move.tokenIndex, tailSquare: snake.to, trapRoll: move.trapRoll },
       };
       pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} met a fang at ${dest}! Use Shield?`);
       return next;
@@ -402,15 +408,15 @@ function resolveNextInQueue(state) {
     tokens[move.tokenIndex] = snake.to;
     pushTrace(next, { kind: 'snake', player, tokenIndex: move.tokenIndex, from: dest, to: snake.to });
     pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} was bitten and slid ${dest} → ${snake.to}!`);
-    return finishMoveStep(next, player, move.tokenIndex, rest);
+    return finishMoveStep(next, player, move.tokenIndex, rest, undefined, move.trapRoll);
   }
 
   tokens[move.tokenIndex] = dest;
   pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} moved ${from} → ${dest}.`);
-  return finishMoveStep(next, player, move.tokenIndex, rest, move.cardDraw);
+  return finishMoveStep(next, player, move.tokenIndex, rest, move.cardDraw, move.trapRoll);
 }
 
-function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw) {
+function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw, trapRoll) {
   let next = clone(state);
   const square = next.players[player].tokens[tokenIndex];
 
@@ -429,7 +435,7 @@ function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw) {
   // Trap check runs regardless of capture — trap squares are never card/safe
   // squares (isTrapPlaceable enforces that), so it can't double up with the
   // card-draw block below.
-  resolveTrap(next, player, tokenIndex, square);
+  resolveTrap(next, player, tokenIndex, square, trapRoll);
 
   // Card squares always get SOME acknowledgment, even with a full hand —
   // previously a full hand meant total silence, which looked broken.
@@ -462,7 +468,7 @@ function applyShieldDecision(state, event) {
   const pending = next.pending;
   if (!pending || !pending.shieldChoice) return next;
   const { player } = pending;
-  const { tokenIndex, tailSquare } = pending.shieldChoice;
+  const { tokenIndex, tailSquare, trapRoll } = pending.shieldChoice;
   const rest = pending.queue;
   const headSquare = next.players[player].tokens[tokenIndex];
 
@@ -474,31 +480,38 @@ function applyShieldDecision(state, event) {
     pushTrace(next, { kind: 'shieldSave', player, tokenIndex, at: headSquare });
     pushLog(next, `${next.players[player].name} used a Shield — Token ${tokenIndex + 1} survived the fang!`);
     next.phase = Phase.CHOOSE_TOKEN;
-    return finishMoveStep(next, player, tokenIndex, rest);
+    return finishMoveStep(next, player, tokenIndex, rest, undefined, trapRoll);
   }
 
   next.players[player].tokens[tokenIndex] = tailSquare;
   pushTrace(next, { kind: 'snake', player, tokenIndex, from: headSquare, to: tailSquare });
   pushLog(next, `${next.players[player].name}: Token ${tokenIndex + 1} slid ${headSquare} → ${tailSquare}.`);
   next.phase = Phase.CHOOSE_TOKEN;
-  return finishMoveStep(next, player, tokenIndex, rest);
+  return finishMoveStep(next, player, tokenIndex, rest, undefined, trapRoll);
 }
 
 // Triggers `player`'s trap at `square` if `player` isn't its owner (a trap
-// never affects its own placer). Mutates state in place like resolveCapture.
-// Returns true if a trap fired.
-function resolveTrap(state, player, tokenIndex, square) {
+// never affects its own placer). The setback is trapRoll (1-6, precomputed
+// speculatively at prepare-time — see prepareChooseTokenEvent/
+// prepareDoubleMoveEvent — same pattern as cardDraw) times
+// TRAP_SETBACK_MULTIPLIER, giving a 5-30 square knockback. Falls back to a
+// fixed value instead of rolling here, since this runs inside the reducer —
+// calling Math.random() here would desync the two peers.
+// Mutates state in place like resolveCapture. Returns true if a trap fired.
+function resolveTrap(state, player, tokenIndex, square, trapRoll) {
   const owner = state.traps ? state.traps[square] : undefined;
   if (!owner || owner === player) return false;
+  const dieValue = trapRoll || 4;
+  const setback = dieValue * TRAP_SETBACK_MULTIPLIER;
   const tokens = state.players[player].tokens;
   const from = square;
-  const to = Math.max(0, square - TRAP_SETBACK);
+  const to = Math.max(0, square - setback);
   tokens[tokenIndex] = to;
   const traps = { ...state.traps };
   delete traps[square];
   state.traps = traps;
   pushTrace(state, { kind: 'trap', player, tokenIndex, from, to, at: square });
-  pushLog(state, `${state.players[player].name}: Token ${tokenIndex + 1} triggered ${state.players[owner].name}'s trap and was knocked back ${from} → ${to}!`);
+  pushLog(state, `${state.players[player].name}: Token ${tokenIndex + 1} triggered ${state.players[owner].name}'s trap — rolled a ${dieValue}, knocked back ${setback} squares, ${from} → ${to}!`);
   return true;
 }
 

@@ -43,6 +43,12 @@
   --wood-2: #4b331d;
   --wood-3: #33220f;
   --radius: 16px;
+  /* Dark halo behind board numbers/icons — helps light glyphs pop off a busy
+     textured square. Flipped to a light halo in the parchment theme, where
+     the glyphs themselves are dark, so it still reads as a "pop" outline
+     instead of muddying dark-on-dark. */
+  --num-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  --icon-glow: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
 
   --font-display: "Fredoka", "Segoe UI", system-ui, sans-serif;
   --font-body: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -86,6 +92,8 @@
   --ladder-color: #935e28;
   --snake-color: #c1394d;
   --snake-belly: #ffd9df;
+  --num-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
+  --icon-glow: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.7)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.55));
 }
 
 :root[data-theme="light"] .title {
@@ -784,7 +792,7 @@ h2 {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   opacity: 0.9;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  text-shadow: var(--num-shadow);
 }
 
 .square-icon {
@@ -796,7 +804,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 1px;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
+  filter: var(--icon-glow);
   line-height: 1;
   z-index: 3;
 }
@@ -836,16 +844,35 @@ h2 {
   50% { box-shadow: inset 0 0 0 2px var(--gold), inset 0 0 14px rgba(212, 176, 120, 0.5); }
 }
 
+/* Own-trap squares get a full-cell pulsing outline (not just a tiny corner
+   glyph) so the owner can spot them at a glance — the opponent never sees
+   this class or the marker (ui.js's renderTraps only sets it for the
+   owner's own view). */
+.square.trap-owned {
+  box-shadow: inset 0 0 0 2px var(--danger), inset 0 0 14px rgba(232, 85, 106, 0.4);
+  animation: trap-owned-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes trap-owned-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--danger), inset 0 0 12px rgba(232, 85, 106, 0.3); }
+  50% { box-shadow: inset 0 0 0 2.5px var(--danger), inset 0 0 20px rgba(232, 85, 106, 0.55); }
+}
+
 .trap-marker-icon {
   position: absolute;
-  left: 1px;
-  top: 1px;
-  width: clamp(11px, 2.6vmin, 16px);
-  height: clamp(11px, 2.6vmin, 16px);
-  color: var(--danger);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(18px, 4.4vmin, 26px);
+  height: clamp(18px, 4.4vmin, 26px);
+  color: #fff;
+  background: var(--danger);
+  border-radius: 50%;
+  padding: 4px;
+  box-sizing: border-box;
   z-index: 4;
   pointer-events: none;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.6);
   animation: trap-marker-pulse 1.6s ease-in-out infinite;
 }
 
@@ -855,8 +882,8 @@ h2 {
 }
 
 @keyframes trap-marker-pulse {
-  0%, 100% { opacity: 0.75; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.15); }
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.15); }
 }
 
 .trap-prompt {
@@ -866,27 +893,39 @@ h2 {
   transform: translateX(-50%);
   z-index: 22;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(20, 15, 32, 0.92);
   border: 1px solid var(--gold-dim);
-  border-radius: 999px;
-  padding: 8px 10px 8px 16px;
+  border-radius: 18px;
+  padding: 10px 16px;
   font-size: 13px;
   font-weight: 700;
   color: #fff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   max-width: 92vw;
+  text-align: center;
 }
 
 .trap-prompt.hidden {
   display: none;
 }
 
+.trap-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .trap-prompt .btn {
   padding: 6px 14px;
   min-height: 32px;
   font-size: 12px;
+}
+
+.trap-prompt .modal-timer {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 @keyframes square-flash {

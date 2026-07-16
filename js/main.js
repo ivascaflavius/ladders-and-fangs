@@ -15,6 +15,7 @@ import * as Game from './game.js';
 import * as UI from './ui.js';
 import { Icon } from './icons.js';
 import * as AI from './ai.js';
+import BoardData from './board-data.js';
 
 const SESSION_KEY = 'laddersAndFangs.session.v1';
 const COMPUTER_NAME = 'Computer';
@@ -482,22 +483,25 @@ const CHOICE_TIME_LIMIT_SEC = 30;
 let choiceTimerInterval = null;
 let choiceTimerDeadline = null;
 let choiceTimerKey = null;
-let choiceTimerTarget = null; // 'dice-modal-timer' | 'shield-modal-timer'
+let choiceTimerTarget = null; // 'dice-modal-timer' | 'shield-modal-timer' | 'trap-prompt-timer'
 
 function updateChoiceTimer() {
   const tokenChoiceOpen = gameState && isMyTurn() && gameState.phase === Game.Phase.CHOOSE_TOKEN && UI.isDiceModalOpen();
   const shieldChoiceOpen = gameState && gameState.phase === Game.Phase.SHIELD_DECISION
     && gameState.pending && gameState.pending.player === myPlayer;
+  const trapChoiceOpen = trapPlacementActive;
 
-  if (!tokenChoiceOpen && !shieldChoiceOpen) {
+  if (!tokenChoiceOpen && !shieldChoiceOpen && !trapChoiceOpen) {
     stopChoiceTimer();
     return;
   }
 
-  const target = tokenChoiceOpen ? 'dice-modal-timer' : 'shield-modal-timer';
+  const target = tokenChoiceOpen ? 'dice-modal-timer' : trapChoiceOpen ? 'trap-prompt-timer' : 'shield-modal-timer';
   const key = tokenChoiceOpen
     ? `choice-${gameState.moveTraceId}`
-    : `shield-${gameState.moveTraceId}-${gameState.pending.queue.length}`;
+    : trapChoiceOpen
+      ? `trap-${gameState.stats.turns}`
+      : `shield-${gameState.moveTraceId}-${gameState.pending.queue.length}`;
 
   if (key !== choiceTimerKey) {
     choiceTimerKey = key;
@@ -555,6 +559,27 @@ async function resolveChoiceTimeout(target) {
     const useShield = Math.random() < 0.5;
     await UI.animateModalRoulette('#shield-overlay .btn', useShield ? 0 : 1);
     const event = Game.prepareShieldDecisionEvent(gameState, myPlayer, useShield, true);
+    applyAndMaybeBroadcast(event, true);
+    return;
+  }
+
+  if (target === 'trap-prompt-timer' && trapPlacementActive) {
+    const eligible = [];
+    for (let sq = 1; sq < BoardData.LAST_SQUARE; sq++) {
+      if (Game.isTrapPlaceable(gameState, sq)) eligible.push(sq);
+    }
+    trapPlacementActive = false;
+    UI.exitTrapPlacementMode();
+    if (eligible.length === 0) {
+      // Nowhere left to place it — just let the turn continue as ROLLING;
+      // renderGame() (triggered by the next tick) will restart the roll timer.
+      renderGame();
+      return;
+    }
+    const square = eligible[Math.floor(Math.random() * eligible.length)];
+    const event = Game.prepareTrapEvent(gameState, myPlayer, square, true);
+    UI.playSound('card');
+    UI.haptic('card');
     applyAndMaybeBroadcast(event, true);
   }
 }
@@ -654,8 +679,16 @@ function renderGame() {
         ...Game.previewMove(gameState, myPlayer, idx, gameState.lastRoll),
       }));
       const hasLockedToken = gameState.players[myPlayer].tokens.some((pos) => !Game.isTokenSwappable(pos));
+      // Only wire up a working button when Double Move would actually do
+      // something — with a token locked at 100, the other token might not
+      // fit roll*2 (e.g. 99 + 1*2 = 101), in which case the button must show
+      // as disabled instead of quietly wasting the card and the turn.
       const doubleMove = hasDoubleMove
-        ? { onPlay: () => { stopChoiceTimer(); UI.closeDiceModal(); playDoubleMove(); }, locked: hasLockedToken }
+        ? {
+            onPlay: () => { stopChoiceTimer(); UI.closeDiceModal(); playDoubleMove(); },
+            locked: hasLockedToken,
+            disabled: !doubleMoveViable,
+          }
         : null;
       UI.showDiceModalTokenChoice(
         options,
@@ -772,6 +805,7 @@ function startTrapPlacement() {
   UI.enterTrapPlacementMode(
     (square) => Game.isTrapPlaceable(gameState, square),
     (square) => {
+      stopChoiceTimer();
       trapPlacementActive = false;
       UI.exitTrapPlacementMode();
       const event = Game.prepareTrapEvent(gameState, myPlayer, square);
@@ -780,9 +814,11 @@ function startTrapPlacement() {
       applyAndMaybeBroadcast(event, true);
     },
   );
+  updateChoiceTimer();
 }
 
 function cancelTrapPlacement() {
+  stopChoiceTimer();
   trapPlacementActive = false;
   UI.exitTrapPlacementMode();
   renderGame();

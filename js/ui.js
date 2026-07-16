@@ -141,83 +141,131 @@ function buildConnectionsSvg() {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
 
+  const mkLine = (cls, x1, y1, x2, y2) => {
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('class', cls);
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    return line;
+  };
+  const mkPath = (cls, d) => {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('class', cls);
+    path.setAttribute('d', d);
+    return path;
+  };
+  const mkCircle = (cls, cx, cy, r) => {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('class', cls);
+    c.setAttribute('cx', cx);
+    c.setAttribute('cy', cy);
+    c.setAttribute('r', r);
+    return c;
+  };
+
+  // Wooden ladders: every rail/rung is drawn twice — a wider dark stroke
+  // underneath and a wood-colored stroke on top — which reads as a solid
+  // outlined plank instead of a translucent line.
   BoardData.LADDERS.forEach((ladder) => {
     const a = squareCenterPercent(ladder.from);
     const b = squareCenterPercent(ladder.to);
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
-    // perpendicular unit vector, scaled to a ~2.2-unit rail spread
-    const px = (-dy / len) * 2.2;
-    const py = (dx / len) * 2.2;
+    // perpendicular unit vector, scaled to a ~2-unit rail spread
+    const px = (-dy / len) * 2;
+    const py = (dx / len) * 2;
 
     const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'ladder-group');
 
-    const rail1 = document.createElementNS(NS, 'line');
-    rail1.setAttribute('class', 'ladder-rail');
-    rail1.setAttribute('x1', a.x + px);
-    rail1.setAttribute('y1', a.y + py);
-    rail1.setAttribute('x2', b.x + px);
-    rail1.setAttribute('y2', b.y + py);
-    g.appendChild(rail1);
-
-    const rail2 = document.createElementNS(NS, 'line');
-    rail2.setAttribute('class', 'ladder-rail');
-    rail2.setAttribute('x1', a.x - px);
-    rail2.setAttribute('y1', a.y - py);
-    rail2.setAttribute('x2', b.x - px);
-    rail2.setAttribute('y2', b.y - py);
-    g.appendChild(rail2);
-
-    const rungCount = Math.max(3, Math.round(len / 6));
+    const segs = [
+      [a.x + px, a.y + py, b.x + px, b.y + py, 'rail'],
+      [a.x - px, a.y - py, b.x - px, b.y - py, 'rail'],
+    ];
+    const rungCount = Math.max(3, Math.round(len / 5));
     for (let i = 1; i < rungCount; i++) {
       const t = i / rungCount;
       const cx = a.x + dx * t;
       const cy = a.y + dy * t;
-      const rung = document.createElementNS(NS, 'line');
-      rung.setAttribute('class', 'ladder-rung');
-      rung.setAttribute('x1', cx + px);
-      rung.setAttribute('y1', cy + py);
-      rung.setAttribute('x2', cx - px);
-      rung.setAttribute('y2', cy - py);
-      g.appendChild(rung);
+      segs.push([cx + px, cy + py, cx - px, cy - py, 'rung']);
     }
+    // all shadow strokes first so the wood strokes sit cleanly on top
+    segs.forEach(([x1, y1, x2, y2, kind]) => g.appendChild(mkLine(`ladder-${kind}-shadow`, x1, y1, x2, y2)));
+    segs.forEach(([x1, y1, x2, y2, kind]) => g.appendChild(mkLine(`ladder-${kind}`, x1, y1, x2, y2)));
 
     svg.appendChild(g);
   });
 
+  // Snakes: a layered body (dark outline, main color, light belly stripe)
+  // with a thinner tail section, plus a proper head — eyes and a forked
+  // tongue pointing away from the body.
   BoardData.SNAKES.forEach((snake) => {
     const a = squareCenterPercent(snake.from); // head
     const b = squareCenterPercent(snake.to); // tail
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
-    const px = (-dy / len) * 3.4;
-    const py = (dx / len) * 3.4;
+    const px = (-dy / len) * 3.2;
+    const py = (dx / len) * 3.2;
 
-    const segments = 5;
-    let d = `M ${a.x} ${a.y}`;
-    for (let i = 1; i <= segments; i++) {
-      const t = i / segments;
+    const segments = 6;
+    const pointAt = (t) => {
       const wiggle = Math.sin(t * Math.PI * 2.4) * (1 - t * 0.3);
-      const midX = a.x + dx * (t - 0.5 / segments) + px * wiggle;
-      const midY = a.y + dy * (t - 0.5 / segments) + py * wiggle;
-      const endX = a.x + dx * t;
-      const endY = a.y + dy * t;
-      d += ` Q ${midX} ${midY} ${endX} ${endY}`;
+      return {
+        mx: a.x + dx * (t - 0.5 / segments) + px * wiggle,
+        my: a.y + dy * (t - 0.5 / segments) + py * wiggle,
+        x: a.x + dx * t,
+        y: a.y + dy * t,
+      };
+    };
+
+    // split the spine into a main (head-side) part and a thinner tail part
+    const tailStart = segments - 2;
+    let dMain = `M ${a.x} ${a.y}`;
+    let dTail = '';
+    for (let i = 1; i <= segments; i++) {
+      const p = pointAt(i / segments);
+      const q = ` Q ${p.mx} ${p.my} ${p.x} ${p.y}`;
+      if (i <= tailStart) {
+        dMain += q;
+        if (i === tailStart) dTail = `M ${p.x} ${p.y}`;
+      } else {
+        dTail += q;
+      }
     }
 
-    const path = document.createElementNS(NS, 'path');
-    path.setAttribute('class', 'snake-body');
-    path.setAttribute('d', d);
-    svg.appendChild(path);
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'snake-group');
+    g.appendChild(mkPath('snake-body-outline', dMain));
+    g.appendChild(mkPath('snake-tail-outline', dTail));
+    g.appendChild(mkPath('snake-body', dMain));
+    g.appendChild(mkPath('snake-tail', dTail));
+    g.appendChild(mkPath('snake-belly', dMain));
 
-    const head = document.createElementNS(NS, 'circle');
-    head.setAttribute('class', 'snake-head-marker');
-    head.setAttribute('cx', a.x);
-    head.setAttribute('cy', a.y);
-    head.setAttribute('r', 1.8);
-    svg.appendChild(head);
+    // head direction: away from the first body point
+    const p1 = pointAt(1 / segments);
+    const hx = a.x - p1.x;
+    const hy = a.y - p1.y;
+    const hlen = Math.hypot(hx, hy) || 1;
+    const ux = hx / hlen;
+    const uy = hy / hlen;
+    const vx = -uy; // perpendicular
+    const vy = ux;
+
+    g.appendChild(mkCircle('snake-head-marker', a.x, a.y, 2.4));
+    g.appendChild(mkCircle('snake-eye', a.x + ux * 0.7 + vx * 1.05, a.y + uy * 0.7 + vy * 1.05, 0.5));
+    g.appendChild(mkCircle('snake-eye', a.x + ux * 0.7 - vx * 1.05, a.y + uy * 0.7 - vy * 1.05, 0.5));
+
+    const tBase = { x: a.x + ux * 2.3, y: a.y + uy * 2.3 };
+    const tTip = { x: a.x + ux * 3.9, y: a.y + uy * 3.9 };
+    const fork1 = { x: tTip.x + ux * 1 + vx * 0.8, y: tTip.y + uy * 1 + vy * 0.8 };
+    const fork2 = { x: tTip.x + ux * 1 - vx * 0.8, y: tTip.y + uy * 1 - vy * 0.8 };
+    g.appendChild(mkPath('snake-tongue-line', `M ${tBase.x} ${tBase.y} L ${tTip.x} ${tTip.y} M ${tTip.x} ${tTip.y} L ${fork1.x} ${fork1.y} M ${tTip.x} ${tTip.y} L ${fork2.x} ${fork2.y}`));
+
+    svg.appendChild(g);
   });
 
   return svg;

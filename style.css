@@ -1,10 +1,21 @@
+/* Ladders & Fangs — "night tabletop" theme.
+   One consistent dark board-game look across every screen: warm ink-purple
+   felt background, leather-dark panels with a brass trim, a wooden board
+   frame, and warm parchment text. Headings/buttons use Fredoka (rounded,
+   toy-like), body text uses Nunito. */
+
 :root {
-  --bg: #0d0e18;
-  --bg-glow: radial-gradient(circle at 50% -10%, #262c52 0%, #0d0e18 55%);
-  --panel: #1b1f30;
-  --panel-border: #2c3350;
-  --text: #eef0fb;
-  --text-dim: #9aa2c4;
+  --bg: #131022;
+  --bg-glow:
+    radial-gradient(1100px 700px at 50% -12%, #2d2547 0%, rgba(19, 16, 34, 0) 60%),
+    radial-gradient(900px 600px at 50% 115%, #241636 0%, rgba(19, 16, 34, 0) 55%);
+  --panel: #211b34;
+  --panel-2: #191428;
+  --panel-border: #3d3357;
+  --gold: #d4b078;
+  --gold-dim: #8d7550;
+  --text: #f3efe4;
+  --text-dim: #aca3bf;
   --accent: #4ecb8a;
   --accent-dim: #2f7a56;
   --danger: #e8556a;
@@ -14,18 +25,25 @@
   --guest-color: #ffb347;
   --guest-color-2: #e6892a;
 
-  --square-bg: #1c2038;
-  --square-bg-2: #191c33;
-  --square-alt-bg: #21254080;
-  --safe-bg: #1f4438;
+  --square-bg: #272045;
+  --square-bg-2: #211b3a;
+  --square-alt-bg: #1d1834;
+  --safe-bg: #1e4437;
   --safe-bg-2: #173328;
   --card-bg: #4a3a75;
   --card-bg-2: #382a5c;
-  --ladder-color: #4ecb8a;
-  --snake-color: #ff5f7a;
-  --board-frame-1: #3a4270;
-  --board-frame-2: #232748;
-  --radius: 14px;
+  --ladder-color: #e5af62;
+  --ladder-shadow: #3c2712;
+  --snake-color: #e34b66;
+  --snake-outline: #5e1a29;
+  --snake-belly: #ffb9c4;
+  --wood-1: #7c5433;
+  --wood-2: #4b331d;
+  --wood-3: #33220f;
+  --radius: 16px;
+
+  --font-display: "Fredoka", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 * {
@@ -63,7 +81,7 @@ html, body {
   inset: 0;
   background: var(--bg-glow), var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
@@ -90,66 +108,80 @@ html, body {
   display: flex;
 }
 
+/* Panels look like a leather game-box lid: dark surface, faint top sheen,
+   brass hairline just inside the border. */
 .panel {
-  background: linear-gradient(180deg, #212642, var(--panel));
+  position: relative;
+  background: linear-gradient(180deg, #2a2342, var(--panel) 45%, var(--panel-2));
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: clamp(20px, 5vmin, 40px);
-  width: min(420px, 92vw);
+  width: min(430px, 92vw);
   max-height: 90dvh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(212, 176, 120, 0.14) inset,
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 60px rgba(0, 0, 0, 0.55);
 }
 
 .menu-panel {
-  gap: 16px;
+  gap: 14px;
+}
+
+h1, h2, .btn {
+  font-family: var(--font-display);
 }
 
 .title {
-  font-size: clamp(28px, 7vmin, 42px);
-  margin: 0 0 4px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #fff, var(--host-color) 60%, var(--guest-color));
+  font-size: clamp(30px, 7.4vmin, 44px);
+  margin: 0 0 2px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, #fff8e8, var(--host-color) 55%, var(--guest-color));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
-/* Idle main-menu decoration — a ladder and a snake that stay gently "alive"
-   while the player looks at the menu: the ladder bounces, the snake's tongue
-   flicks out on a loop. */
+/* Idle main-menu decoration — a wooden ladder, an ampersand, and a snake
+   (head + a bit of torso) that stay gently "alive": the ladder bounces, the
+   snake's head bobs while its curly forked tongue flicks on a loop. */
 .menu-critters {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin: -4px 0 4px;
+  gap: 12px;
+  margin: -2px 0 2px;
+}
+
+.menu-amp {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--gold);
+  text-shadow: 0 2px 10px rgba(212, 176, 120, 0.35);
+  line-height: 1;
 }
 
 .menu-ladder-icon {
-  width: 52px;
-  height: 52px;
-}
-
-.menu-snake-icon {
-  width: 52px;
-  height: 52px;
-}
-
-.menu-ladder-icon {
+  width: 58px;
+  height: 58px;
   color: var(--ladder-color);
-  filter: drop-shadow(0 0 8px rgba(78, 203, 138, 0.5));
-  animation: menu-ladder-bounce 1.3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(229, 175, 98, 0.45));
+  animation: menu-ladder-bounce 1.6s ease-in-out infinite;
 }
 
 .menu-snake-icon {
+  width: 64px;
+  height: 58px;
   color: var(--snake-color);
-  filter: drop-shadow(0 0 10px rgba(255, 95, 122, 0.5));
+  filter: drop-shadow(0 0 10px rgba(227, 75, 102, 0.45));
 }
 
 @keyframes menu-ladder-bounce {
@@ -158,25 +190,35 @@ html, body {
 }
 
 .menu-snake-torso {
-  transform-origin: 33px 35px;
-  animation: menu-tail-wiggle 2.2s ease-in-out infinite;
+  transform-origin: 25px 22px;
+  animation: menu-tail-wiggle 2.4s ease-in-out infinite;
 }
 
 @keyframes menu-tail-wiggle {
   0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-5deg); }
+  50% { transform: rotate(-6deg); }
+}
+
+.menu-snake-head-group {
+  transform-origin: 17px 15px;
+  animation: menu-head-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes menu-head-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(1.4px) rotate(-3deg); }
 }
 
 .menu-snake-tongue {
-  transform-origin: 11px 4px;
-  animation: menu-tongue-flick 2.6s ease-in-out infinite;
+  transform-origin: 7px 15.6px;
+  animation: menu-tongue-flick 2.8s ease-in-out infinite;
 }
 
 @keyframes menu-tongue-flick {
-  0%, 78%, 100% { opacity: 0; transform: scale(0.4); }
-  84% { opacity: 1; transform: scale(1); }
-  90% { opacity: 1; transform: scale(0.7); }
-  96% { opacity: 1; transform: scale(1); }
+  0%, 72%, 100% { opacity: 0; transform: scaleX(0.3); }
+  78% { opacity: 1; transform: scaleX(1); }
+  84% { opacity: 1; transform: scaleX(0.75); }
+  92% { opacity: 1; transform: scaleX(1); }
 }
 
 .subtitle {
@@ -189,20 +231,21 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--square-bg);
+  background: var(--panel-2);
   border: 1px solid var(--panel-border);
   border-radius: 999px;
   padding: 6px 14px 6px 6px;
   cursor: pointer;
-  margin: 4px auto 8px;
+  margin: 2px auto 6px;
   touch-action: manipulation;
   color: var(--text);
+  font-family: var(--font-body);
 }
 
 .identity-avatar {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--host-color), var(--guest-color));
   display: flex;
@@ -211,6 +254,7 @@ html, body {
   font-weight: 800;
   color: #0b1210;
   font-size: 15px;
+  box-shadow: 0 0 0 2px rgba(212, 176, 120, 0.35);
 }
 
 .identity-text {
@@ -228,7 +272,7 @@ html, body {
 }
 
 .identity-name {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
   max-width: 180px;
   overflow: hidden;
@@ -245,6 +289,8 @@ html, body {
 h2 {
   margin: 0 0 4px;
   font-size: clamp(20px, 5vmin, 26px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .hint {
@@ -253,13 +299,16 @@ h2 {
   margin: 0;
 }
 
+/* Buttons read like chunky board-game pieces: rounded, with a solid "edge"
+   shadow underneath that compresses on press. */
 .btn {
   appearance: none;
   border: none;
-  border-radius: 10px;
-  padding: 14px 20px;
+  border-radius: 12px;
+  padding: 13px 20px;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
   min-height: 48px;
   touch-action: manipulation;
@@ -277,7 +326,7 @@ h2 {
 }
 
 .btn-menu-icon {
-  font-size: 26px;
+  font-size: 24px;
   line-height: 1;
   flex-shrink: 0;
   width: 30px;
@@ -285,13 +334,15 @@ h2 {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, #63dea2, var(--accent) 55%, #3aa76e);
   color: #08130d;
+  box-shadow: 0 3px 0 #23724c, 0 8px 18px rgba(78, 203, 138, 0.28);
 }
 
 .btn-secondary {
-  background: var(--panel-border);
+  background: linear-gradient(180deg, #453a68, #362d52);
   color: var(--text);
+  box-shadow: 0 3px 0 #241d3a, 0 6px 14px rgba(0, 0, 0, 0.3);
 }
 
 .btn-ghost {
@@ -301,12 +352,14 @@ h2 {
 }
 
 .btn-danger {
-  background: var(--danger);
+  background: linear-gradient(180deg, #f0697d, var(--danger) 55%, #c23c50);
   color: #200608;
+  box-shadow: 0 3px 0 #7e2432, 0 6px 14px rgba(232, 85, 106, 0.25);
 }
 
 .btn:active {
-  transform: scale(0.97);
+  transform: translateY(2px) scale(0.99);
+  box-shadow: none;
 }
 
 .btn,
@@ -315,7 +368,7 @@ h2 {
 .card-slot.filled,
 .dice-modal-choice:not(:disabled),
 .settings-row {
-  transition: transform 0.12s ease, filter 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition: transform 0.12s ease, filter 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
 
 /* Hover only on devices with a real pointer — avoids "sticky hover" after a
@@ -325,20 +378,12 @@ h2 {
   .icon-btn:hover,
   .card-slot.filled:hover,
   .dice-modal-choice:not(:disabled):hover {
-    filter: brightness(1.12);
+    filter: brightness(1.1);
     transform: translateY(-1px);
   }
 
-  .btn-primary:hover {
-    box-shadow: 0 4px 14px rgba(78, 203, 138, 0.35);
-  }
-
-  .btn-danger:hover {
-    box-shadow: 0 4px 14px rgba(232, 85, 106, 0.35);
-  }
-
   .identity-chip:hover {
-    border-color: var(--accent);
+    border-color: var(--gold);
     background: var(--square-alt-bg);
   }
 
@@ -349,10 +394,10 @@ h2 {
 
 .icon-btn {
   appearance: none;
-  border: none;
-  background: var(--panel-border);
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(180deg, #342b50, #262040);
   color: var(--text);
-  border-radius: 10px;
+  border-radius: 12px;
   width: 44px;
   height: 44px;
   min-width: 44px;
@@ -362,18 +407,21 @@ h2 {
 }
 
 .icon-btn-danger {
-  background: rgba(232, 85, 106, 0.18);
+  background: rgba(232, 85, 106, 0.15);
+  border-color: rgba(232, 85, 106, 0.4);
   color: var(--danger);
 }
 
 .room-code {
+  font-family: var(--font-display);
   font-size: clamp(32px, 10vmin, 48px);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.25em;
   padding: 12px;
-  background: var(--square-bg);
-  border-radius: 10px;
-  color: var(--accent);
+  background: var(--panel-2);
+  border: 1px dashed var(--gold-dim);
+  border-radius: 12px;
+  color: var(--gold);
 }
 
 .waiting-dots .dots {
@@ -391,14 +439,15 @@ h2 {
 }
 
 .code-input {
+  font-family: var(--font-display);
   font-size: 28px;
   letter-spacing: 0.3em;
   text-align: center;
   text-transform: uppercase;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--panel-border);
-  background: var(--square-bg);
+  background: var(--panel-2);
   color: var(--text);
   min-height: 48px;
 }
@@ -442,16 +491,18 @@ h2 {
 .turn-indicator {
   flex: 1;
   text-align: center;
-  font-weight: 700;
-  font-size: clamp(13px, 3vmin, 16px);
-  background: var(--square-bg);
-  border-radius: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(14px, 3.2vmin, 17px);
+  background: linear-gradient(180deg, #2b2447, var(--panel-2));
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
   padding: 8px 10px;
 }
 
 .game-stats {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   font-size: 12px;
   color: var(--text-dim);
   flex-shrink: 0;
@@ -460,11 +511,13 @@ h2 {
 .game-stat {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: var(--square-bg);
-  border-radius: 8px;
+  gap: 5px;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
   padding: 6px 9px;
   white-space: nowrap;
+  font-weight: 700;
 }
 
 .game-stat-icon {
@@ -483,10 +536,11 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
   font-size: 13px;
-  background: var(--square-bg);
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
   border-left: 4px solid var(--panel-border);
   transition: box-shadow 0.2s ease, background 0.2s ease;
 }
@@ -499,21 +553,21 @@ h2 {
    active player is unmistakable at a glance. */
 .player-chip.host {
   border-left-color: var(--host-color);
-  opacity: 0.62;
+  opacity: 0.6;
   filter: saturate(0.45);
   transition: opacity 0.25s ease, filter 0.25s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .player-chip.guest {
   border-left-color: var(--guest-color);
-  opacity: 0.62;
+  opacity: 0.6;
   filter: saturate(0.45);
   transition: opacity 0.25s ease, filter 0.25s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .player-chip.active-turn {
   background: var(--square-alt-bg);
-  box-shadow: 0 0 0 1px currentColor inset, 0 0 12px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 1px currentColor inset, 0 0 14px rgba(255, 255, 255, 0.08);
   animation: chip-pulse 1.4s ease-in-out infinite;
   opacity: 1;
   filter: saturate(1);
@@ -539,7 +593,7 @@ h2 {
 }
 
 .mini-card {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
   display: inline-flex;
 }
@@ -554,7 +608,7 @@ h2 {
 }
 
 .chip-name {
-  font-weight: 700;
+  font-weight: 800;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -569,6 +623,8 @@ h2 {
   padding: 6px;
 }
 
+/* The board sits in a wooden frame with a brass inner hairline — like a
+   physical game board on the table. */
 .board {
   position: relative;
   display: grid;
@@ -576,15 +632,18 @@ h2 {
   grid-template-rows: repeat(10, 1fr);
   width: min(94vmin, 96%, 700px);
   height: min(94vmin, 96%, 700px);
-  gap: 2px;
-  background: linear-gradient(155deg, var(--board-frame-1), var(--board-frame-2));
-  border-radius: 12px;
+  gap: 1.5px;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.28)),
+    linear-gradient(155deg, var(--wood-1), var(--wood-2) 55%, var(--wood-3));
+  border-radius: 14px;
   overflow: hidden;
   touch-action: none;
-  padding: 3px;
+  padding: 6px;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-    0 25px 70px rgba(0, 0, 0, 0.55);
+    0 0 0 1px rgba(212, 176, 120, 0.4) inset,
+    0 0 0 5px rgba(0, 0, 0, 0.18) inset,
+    0 28px 70px rgba(0, 0, 0, 0.6);
   transition: transform 0.12s ease;
 }
 
@@ -606,8 +665,8 @@ h2 {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  font-size: clamp(7px, 1.6vmin, 12px);
-  color: var(--text-dim);
+  font-size: clamp(9px, 2.1vmin, 13px);
+  color: #cfc7e6;
   padding: 2px 3px;
   overflow: visible;
 }
@@ -618,12 +677,12 @@ h2 {
 
 .square.safe {
   background: linear-gradient(160deg, var(--safe-bg), var(--safe-bg-2));
-  box-shadow: inset 0 0 0 1px rgba(78, 203, 138, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(78, 203, 138, 0.3);
 }
 
 .square.card-square {
   background: linear-gradient(160deg, var(--card-bg), var(--card-bg-2));
-  box-shadow: inset 0 0 0 1px rgba(190, 160, 255, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(190, 160, 255, 0.35);
 }
 
 .square.ladder-end {
@@ -637,7 +696,9 @@ h2 {
 .square-num {
   pointer-events: none;
   font-variant-numeric: tabular-nums;
-  opacity: 0.85;
+  font-weight: 800;
+  opacity: 0.9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 .square-icon {
@@ -669,6 +730,8 @@ h2 {
   100% { box-shadow: inset 0 0 0 0px transparent; }
 }
 
+/* -------- board connectors: wooden ladders + shaded snakes -------- */
+
 .connections-layer {
   position: absolute;
   inset: 0;
@@ -679,33 +742,93 @@ h2 {
   overflow: visible;
 }
 
-.ladder-rail {
-  fill: none;
-  stroke: var(--ladder-color);
-  stroke-width: 1.1;
+.ladder-group {
+  opacity: 0.72;
+}
+
+.ladder-rail-shadow,
+.ladder-rung-shadow {
+  stroke: var(--ladder-shadow);
   stroke-linecap: round;
-  opacity: 0.4;
+}
+
+.ladder-rail-shadow {
+  stroke-width: 1.7;
+}
+
+.ladder-rung-shadow {
+  stroke-width: 1.5;
+}
+
+.ladder-rail {
+  stroke: var(--ladder-color);
+  stroke-width: 1;
+  stroke-linecap: round;
 }
 
 .ladder-rung {
-  stroke: var(--ladder-color);
+  stroke: #d09a4e;
   stroke-width: 0.8;
   stroke-linecap: round;
-  opacity: 0.3;
+}
+
+.snake-group {
+  opacity: 0.72;
+}
+
+.snake-body-outline,
+.snake-tail-outline {
+  fill: none;
+  stroke: var(--snake-outline);
+  stroke-linecap: round;
+}
+
+.snake-body-outline {
+  stroke-width: 3.1;
+}
+
+.snake-tail-outline {
+  stroke-width: 2;
+}
+
+.snake-body,
+.snake-tail {
+  fill: none;
+  stroke: var(--snake-color);
+  stroke-linecap: round;
 }
 
 .snake-body {
+  stroke-width: 2.1;
+}
+
+.snake-tail {
+  stroke-width: 1.1;
+}
+
+.snake-belly {
   fill: none;
-  stroke: var(--snake-color);
-  stroke-width: 1.6;
+  stroke: var(--snake-belly);
+  stroke-width: 0.55;
   stroke-linecap: round;
-  opacity: 0.38;
-  filter: drop-shadow(0 0 2px rgba(255, 95, 122, 0.35));
+  opacity: 0.55;
 }
 
 .snake-head-marker {
   fill: var(--snake-color);
-  opacity: 0.5;
+  stroke: var(--snake-outline);
+  stroke-width: 0.5;
+}
+
+.snake-eye {
+  fill: #1b0d12;
+}
+
+.snake-tongue-line {
+  fill: none;
+  stroke: #ff97a8;
+  stroke-width: 0.55;
+  stroke-linecap: round;
 }
 
 .tokens-layer {
@@ -717,13 +840,13 @@ h2 {
 
 .token {
   position: absolute;
-  width: clamp(19px, 4.6vmin, 32px);
-  height: clamp(19px, 4.6vmin, 32px);
+  width: clamp(20px, 4.8vmin, 34px);
+  height: clamp(20px, 4.8vmin, 34px);
   border-radius: 50%;
-  border: 3px solid #fff;
+  border: 2.5px solid #fff;
   box-shadow:
-    0 3px 8px rgba(0, 0, 0, 0.65),
-    0 0 0 1.5px rgba(0, 0, 0, 0.35),
+    0 3px 8px rgba(0, 0, 0, 0.7),
+    0 0 0 1.5px rgba(0, 0, 0, 0.4),
     0 0 10px 1px var(--token-glow, transparent);
   transform: translate(-50%, -50%);
   pointer-events: auto;
@@ -732,9 +855,9 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(9px, 2vmin, 13px);
+  font-size: clamp(10px, 2.1vmin, 14px);
   font-weight: 800;
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.65);
   z-index: 3;
 }
 
@@ -840,7 +963,7 @@ h2 {
 }
 
 .game-footer {
-  padding: 8px 10px 14px;
+  padding: 8px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -851,8 +974,9 @@ h2 {
   justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
-  background: var(--square-bg);
-  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
   padding: 6px 10px;
 }
 
@@ -861,7 +985,7 @@ h2 {
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-dim);
   padding: 2px 6px;
 }
@@ -898,7 +1022,7 @@ h2 {
   font-size: 13px;
   font-weight: 800;
   color: var(--text-dim);
-  background: var(--square-bg);
+  background: var(--panel-2);
   border-radius: 999px;
   padding: 6px 12px;
   align-self: center;
@@ -970,8 +1094,8 @@ h2 {
   gap: 2px;
   padding: 0;
   min-width: 0;
-  background: linear-gradient(160deg, #5fe0a5, var(--accent));
-  box-shadow: 0 6px 18px rgba(78, 203, 138, 0.35);
+  background: linear-gradient(160deg, #5fe0a5, var(--accent) 60%, #38a96f);
+  box-shadow: 0 4px 0 #23724c, 0 8px 18px rgba(78, 203, 138, 0.3);
 }
 
 .die-btn:disabled {
@@ -1010,7 +1134,7 @@ h2 {
 }
 
 #die-label {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .card-hand {
@@ -1022,8 +1146,8 @@ h2 {
 .card-slot {
   width: 52px;
   height: 52px;
-  border-radius: 10px;
-  border: 2px dashed var(--panel-border);
+  border-radius: 12px;
+  border: 2px dashed #4a3f6d;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1032,10 +1156,11 @@ h2 {
 
 .card-slot.filled {
   border-style: solid;
-  border-color: transparent;
+  border-color: rgba(212, 176, 120, 0.45);
   background: linear-gradient(160deg, var(--card-bg), var(--card-bg-2));
   cursor: pointer;
   touch-action: manipulation;
+  box-shadow: 0 3px 0 #241d3a, 0 6px 12px rgba(0, 0, 0, 0.35);
 }
 
 .card-slot.filled:active {
@@ -1048,8 +1173,8 @@ h2 {
 }
 
 .card-slot .icon-svg {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
 
 .icon-actions {
@@ -1061,8 +1186,9 @@ h2 {
 .event-log {
   height: 64px;
   overflow-y: auto;
-  background: var(--square-bg);
-  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
   padding: 6px 10px;
   font-size: 12px;
   color: var(--text-dim);
@@ -1085,8 +1211,8 @@ h2 {
 }
 
 .log-entry-turn {
-  color: var(--accent) !important;
-  font-weight: 700;
+  color: var(--gold) !important;
+  font-weight: 800;
   border-top: 1px solid var(--panel-border);
   margin-top: 4px;
   padding-top: 4px;
@@ -1108,7 +1234,7 @@ h2 {
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(8, 9, 16, 0.72);
+  background: rgba(10, 8, 18, 0.74);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1121,7 +1247,7 @@ h2 {
 }
 
 .overlay-panel {
-  background: var(--panel);
+  background: linear-gradient(180deg, #2a2342, var(--panel) 45%, var(--panel-2));
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 20px;
@@ -1130,6 +1256,9 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  box-shadow:
+    0 0 0 1px rgba(212, 176, 120, 0.14) inset,
+    0 24px 60px rgba(0, 0, 0, 0.55);
 }
 
 .overlay-actions {
@@ -1158,6 +1287,7 @@ h2 {
 .dice-modal-face {
   font-size: clamp(64px, 18vmin, 100px);
   line-height: 1;
+  color: #fff8ec;
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
 }
 
@@ -1170,8 +1300,9 @@ h2 {
 }
 
 .dice-modal-result {
+  font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   min-height: 24px;
 }
 
@@ -1200,16 +1331,17 @@ h2 {
 .dice-modal-choice {
   appearance: none;
   border: 2px solid var(--panel-border);
-  background: var(--square-bg);
+  background: var(--square-alt-bg);
   color: var(--text);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 16px;
   min-height: 52px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
+  font-family: var(--font-body);
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -1234,7 +1366,7 @@ h2 {
 
 .dice-modal-choice-selected {
   border-color: var(--accent);
-  background: linear-gradient(160deg, #234433, var(--square-bg));
+  background: linear-gradient(160deg, #234433, var(--square-alt-bg));
   box-shadow: 0 0 0 1px var(--accent) inset;
 }
 
@@ -1246,7 +1378,7 @@ h2 {
 .dice-modal-choice-locked {
   opacity: 0.45;
   cursor: not-allowed;
-  background: var(--square-bg);
+  background: var(--square-alt-bg);
 }
 
 .swap-choice-buttons {
@@ -1274,6 +1406,7 @@ h2 {
   border: 2px solid #fff;
   border-radius: 50%;
   flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .mini-token.host {
@@ -1306,11 +1439,12 @@ h2 {
   transform: translate(-50%, -50%) scale(0.85);
   max-width: 88%;
   text-align: center;
+  font-family: var(--font-display);
   font-size: clamp(16px, 4vmin, 24px);
-  font-weight: 800;
+  font-weight: 600;
   color: #fff;
-  background: rgba(15, 17, 30, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(20, 15, 32, 0.9);
+  border: 1px solid rgba(212, 176, 120, 0.35);
   border-radius: 14px;
   padding: 14px 22px;
   pointer-events: none;
@@ -1328,7 +1462,7 @@ h2 {
 /* ===================== CARD REVEAL ===================== */
 
 #card-reveal {
-  background: rgba(8, 9, 16, 0.55);
+  background: rgba(10, 8, 18, 0.55);
   pointer-events: none;
   z-index: 30;
 }
@@ -1361,7 +1495,7 @@ h2 {
   gap: 10px;
   font-size: 56px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(212, 176, 120, 0.4);
 }
 
 .card-reveal-back {
@@ -1376,8 +1510,9 @@ h2 {
 }
 
 .card-reveal-front .card-reveal-label {
+  font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* ===================== GAME OVER TOKEN SUMMARY ===================== */
@@ -1386,8 +1521,9 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--square-bg);
-  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
   padding: 10px 14px;
   text-align: left;
 }
@@ -1402,7 +1538,7 @@ h2 {
 
 .game-over-token-row.winner {
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .game-over-token-label {
@@ -1422,7 +1558,7 @@ h2 {
 }
 
 .game-over-token-pos {
-  font-weight: 700;
+  font-weight: 800;
   margin-right: 8px;
 }
 
@@ -1436,8 +1572,9 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--square-bg);
-  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
   padding: 12px 16px;
   text-align: left;
 }
@@ -1452,7 +1589,7 @@ h2 {
 
 .game-over-stat-row strong {
   color: var(--text);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .game-over-stat-icon {
@@ -1470,7 +1607,7 @@ h2 {
 .howtoplay-body {
   overflow-y: auto;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text-dim);
 }
 
@@ -1488,7 +1625,7 @@ h2 {
 }
 
 .hl-safe {
-  color: var(--ladder-color);
+  color: var(--accent);
 }
 
 .hl-card {
@@ -1526,11 +1663,12 @@ h2 {
 
 .settings-row input[type="text"] {
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--panel-border);
-  background: var(--square-bg);
+  background: var(--panel-2);
   color: var(--text);
   min-width: 150px;
+  font-family: var(--font-body);
 }
 
 .settings-row-label {
@@ -1550,6 +1688,7 @@ h2 {
 .toggle-row input[type="checkbox"] {
   width: 24px;
   height: 24px;
+  accent-color: var(--accent);
 }
 
 @media (min-width: 700px) {
@@ -1560,5 +1699,64 @@ h2 {
     order: 0;
     width: auto;
     max-width: 420px;
+  }
+}
+
+/* Compact footer controls on narrow phones — at full size the two card
+   slots + roll button + three icon buttons add up to more than the screen
+   width and the quit button gets pushed off the right edge. */
+@media (max-width: 480px) {
+  .game-footer {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+
+  .controls-row {
+    gap: 8px;
+  }
+
+  .card-hand {
+    gap: 6px;
+  }
+
+  .card-slot {
+    width: 44px;
+    height: 44px;
+  }
+
+  .card-slot .icon-svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .icon-actions {
+    gap: 6px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    font-size: 16px;
+  }
+
+  .roll-wrap {
+    width: 104px;
+    height: 78px;
+  }
+
+  .die-btn {
+    width: 94px;
+    height: 68px;
+    border-radius: 17px;
+  }
+
+  #die-face .icon-svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  #die-label {
+    font-size: 12px;
   }
 }

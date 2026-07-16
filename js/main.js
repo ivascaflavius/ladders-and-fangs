@@ -584,8 +584,9 @@ function renderGame() {
         player: myPlayer,
         ...Game.previewMove(gameState, myPlayer, idx, gameState.lastRoll),
       }));
+      const hasLockedToken = gameState.players[myPlayer].tokens.some((pos) => !Game.isTokenSwappable(pos));
       const doubleMove = hasDoubleMove
-        ? { onPlay: () => { stopChoiceTimer(); UI.closeDiceModal(); playDoubleMove(); } }
+        ? { onPlay: () => { stopChoiceTimer(); UI.closeDiceModal(); playDoubleMove(); }, locked: hasLockedToken }
         : null;
       UI.showDiceModalTokenChoice(
         options,

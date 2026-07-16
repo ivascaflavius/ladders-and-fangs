@@ -750,7 +750,12 @@ export function showDiceModalTokenChoice(options, onChoose, doubleMove) {
     const dmBtn = document.createElement('button');
     dmBtn.type = 'button';
     dmBtn.className = 'dice-modal-choice dice-modal-choice-card';
-    dmBtn.innerHTML = `<span class="card-icon">${Icon.fastForward}</span><span>Play Double Move — move both tokens</span>`;
+    // With a token locked at 100, Double Move sends the remaining token
+    // roll×2 instead of moving both — the label must say which one applies.
+    const dmLabel = doubleMove.locked
+      ? 'Play Double Move — move your token twice'
+      : 'Play Double Move — move both tokens';
+    dmBtn.innerHTML = `<span class="card-icon">${Icon.fastForward}</span><span>${dmLabel}</span>`;
     dmBtn.addEventListener('click', doubleMove.onPlay);
     container.appendChild(dmBtn);
   }

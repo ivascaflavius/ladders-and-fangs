@@ -210,11 +210,15 @@ export function flashEventToast(text, iconHtml) {
 }
 
 // ---------------------------------------------------------------- menu stats
+// Renders into the Stats modal's body (see modals.js's openStatsModal) —
+// moved off the main menu itself since a stats block permanently on the
+// menu pushed the menu buttons below the fold on short/toolbar-heavy
+// mobile viewports.
 export function renderMenuStats(stats) {
-  const panel = el('menu-stats-panel');
+  const panel = el('stats-modal-body');
+  if (!panel) return;
   if (!stats || stats.gamesPlayed === 0) {
-    panel.classList.add('hidden');
-    panel.innerHTML = '';
+    panel.innerHTML = `<div class="menu-stat-row"><span>No games played yet — go win one!</span></div>`;
     return;
   }
   const winRate = Math.round((stats.wins / stats.gamesPlayed) * 100);
@@ -232,5 +236,4 @@ export function renderMenuStats(stats) {
   panel.innerHTML = rows
     .map(([icon, text]) => `<div class="menu-stat-row"><span class="menu-stat-icon">${icon}</span><span>${escapeHtml(text)}</span></div>`)
     .join('');
-  panel.classList.remove('hidden');
 }

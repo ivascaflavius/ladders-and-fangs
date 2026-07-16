@@ -579,6 +579,15 @@ export function showConfirm(message, onConfirm) {
   overlay.classList.remove('hidden');
 }
 
+// ---------------------------------------------------------------- stats
+export function openStatsModal() {
+  el('stats-modal').classList.remove('hidden');
+}
+
+export function closeStatsModal() {
+  hideOverlay('stats-modal');
+}
+
 // ---------------------------------------------------------------- how to play
 export function openHowToPlay() {
   el('howtoplay-modal').classList.remove('hidden');

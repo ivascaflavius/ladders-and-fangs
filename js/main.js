@@ -337,6 +337,11 @@ function wireNetworkEvents() {
 
 function startDisconnectCountdown() {
   opponentWasDisconnected = true;
+  // If they quit from their pause menu, the connection drops for real right
+  // after — swap our "they paused" overlay for the disconnect one rather
+  // than stacking both on top of each other.
+  remoteOpponentPaused = false;
+  UI.hideOpponentPausedOverlay();
   disconnectDeadline = Date.now() + DISCONNECT_GRACE_MS;
   UI.showDisconnectOverlay('Opponent disconnected — waiting to reconnect…', abandonMatch);
   tickDisconnectTimer();
@@ -1026,6 +1031,8 @@ function bindMenu() {
   el('btn-host').addEventListener('click', hostGame);
   el('btn-join').addEventListener('click', () => UI.showScreen('screen-join-enter'));
   el('btn-vs-computer').addEventListener('click', startComputerGame);
+  el('btn-stats').addEventListener('click', () => { renderMenuStats(); UI.openStatsModal(); });
+  el('btn-stats-close').addEventListener('click', UI.closeStatsModal);
   el('btn-settings').addEventListener('click', () => UI.openSettingsModal(false));
   el('btn-menu-identity').addEventListener('click', () => UI.openSettingsModal(false));
   el('btn-howtoplay').addEventListener('click', UI.openHowToPlay);

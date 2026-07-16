@@ -45,10 +45,10 @@
           </span>
           <span class="identity-edit" data-icon="pencil"></span>
         </button>
-        <div id="menu-stats-panel" class="menu-stats-panel hidden"></div>
         <button id="btn-host" class="btn btn-primary btn-menu" type="button"><span class="btn-menu-icon" data-icon="dice"></span>Host a Game</button>
         <button id="btn-join" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="link"></span>Join a Game</button>
         <button id="btn-vs-computer" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="computer"></span>Play vs Computer</button>
+        <button id="btn-stats" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon" data-icon="trophy"></span>Stats</button>
         <button id="btn-howtoplay" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon" data-icon="help"></span>How to Play</button>
         <button id="btn-settings" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon" data-icon="gear"></span>Settings</button>
       </div>
@@ -296,6 +296,15 @@
       <div class="overlay-panel">
         <p>Your opponent has paused the game.</p>
         <button id="btn-opponent-paused-quit" class="btn btn-danger" type="button">Quit</button>
+      </div>
+    </div>
+
+    <!-- ===================== STATS (modal, overlays any screen) ===================== -->
+    <div id="stats-modal" class="overlay hidden">
+      <div class="overlay-panel">
+        <h2><span data-icon="trophy"></span> Your Stats</h2>
+        <div id="stats-modal-body" class="menu-stats-panel"></div>
+        <button id="btn-stats-close" class="btn btn-primary" type="button">Close</button>
       </div>
     </div>
 

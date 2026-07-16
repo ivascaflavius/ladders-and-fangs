@@ -634,6 +634,14 @@ h2 {
   gap: 10px;
   padding: 8px 10px;
   flex-wrap: wrap;
+  /* On very wide screens the layout's own children stretch edge-to-edge
+     otherwise, spreading the pause button, turn indicator, and player chips
+     far apart. Capping and centering keeps them a comfortable read together
+     while the board (sized independently below) still grows to fill the
+     extra vertical/horizontal room. */
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
 }
 
 .turn-indicator {
@@ -778,8 +786,16 @@ h2 {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   grid-template-rows: repeat(10, 1fr);
-  width: min(94vmin, 96%, 700px);
-  height: min(94vmin, 96%, 700px);
+  /* Sized from viewport units only (no `%`, which would resolve against the
+     board-wrap's width and height separately and produce a non-square box).
+     The `calc(100dvh - 200px)` term keeps the board from outgrowing the
+     vertical space actually left by the header/footer on short-but-wide
+     (ultrawide) viewports, where vmin alone would size it off the header
+     and footer since vmin ignores how much of that space they've already
+     claimed. `aspect-ratio` guarantees it stays a perfect square even
+     though only width is computed this way. */
+  width: min(94vmin, 96vw, 1040px, calc(100dvh - 230px));
+  aspect-ratio: 1 / 1;
   gap: 1.5px;
   background:
     linear-gradient(155deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.28)),
@@ -1233,6 +1249,12 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Matches .game-header's cap so the roll button and icon actions stay
+     close together instead of spreading to the far edges on ultrawide. */
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .token-leaderboard {

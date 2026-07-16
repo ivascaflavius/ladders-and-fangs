@@ -97,7 +97,7 @@
 
     <!-- ===================== GAME SCREEN ===================== -->
     <section id="screen-game" class="screen">
-      <div class="game-layout">
+      <div class="game-layout" id="game-layout">
         <header class="game-header">
           <button id="btn-pause" class="icon-btn" type="button" aria-label="Menu"><span data-icon="hamburger"></span></button>
           <div class="turn-indicator" id="turn-indicator">—</div>
@@ -147,6 +147,12 @@
             </div>
           </div>
         </footer>
+      </div>
+
+      <!-- trap placement prompt (shown while choosing a square for the Trap card) -->
+      <div id="trap-prompt" class="trap-prompt hidden">
+        <span><span class="inline-icon" data-icon="trap"></span> Choose a square for your trap</span>
+        <button id="btn-trap-cancel" class="btn btn-ghost" type="button">Cancel</button>
       </div>
 
       <!-- centered dice roll / token choice modal -->
@@ -210,8 +216,9 @@
         <h2 id="game-over-title">Game Over</h2>
         <div id="game-over-tokens" class="game-over-tokens"></div>
         <div id="game-over-stats" class="game-over-stats"></div>
+        <button id="btn-rematch" class="btn btn-primary" type="button"><span data-icon="refresh"></span> Rematch</button>
         <button id="btn-game-over-log" class="btn btn-secondary" type="button"><span data-icon="scroll"></span> View Event Log</button>
-        <button id="btn-back-to-menu" class="btn btn-primary" type="button">Back to Menu</button>
+        <button id="btn-back-to-menu" class="btn btn-ghost" type="button">Back to Menu</button>
       </div>
     </section>
 
@@ -231,6 +238,10 @@
         <label class="settings-row">
           <span class="settings-row-label"><span class="settings-icon" data-icon="user"></span>Player Name</span>
           <input id="settings-name" type="text" maxlength="16" placeholder="Player" />
+        </label>
+        <label class="settings-row toggle-row">
+          <span class="settings-row-label"><span class="settings-icon" data-icon="moon"></span>Dark Theme</span>
+          <input id="settings-theme-dark" type="checkbox" />
         </label>
         <label class="settings-row toggle-row">
           <span class="settings-row-label"><span class="settings-icon" data-icon="speaker"></span>Sound</span>
@@ -268,6 +279,7 @@
             <li><span class="inline-icon" data-icon="shield"></span> <strong>Shield</strong> — automatic/reactive. You don't tap it — it kicks in on its own the moment one of your tokens would be bitten by a snake, keeping the token in place instead of sliding down.</li>
             <li><span class="inline-icon" data-icon="swap"></span> <strong>Swap</strong> — tap it on your turn <em>instead of</em> rolling; pick one of your tokens and one opponent token to swap positions.</li>
             <li><span class="inline-icon" data-icon="fastForward"></span> <strong>Double Move</strong> — after you roll, it appears as an extra option next to your token choices; pick it to move both your tokens by the roll instead of just one. If one token is already locked in at 100, it instead sends your other token twice as far (roll × 2).</li>
+            <li><span class="inline-icon" data-icon="trap"></span> <strong>Trap</strong> — tap it on your turn <em>instead of</em> rolling, then tap an empty, ordinary square on the board to rig it. If your opponent's token lands there, it gets knocked back a few squares — Shield won't save them, it only blocks snakes. Traps stay hidden: you'll see your own on the board, but never your opponent's, until one springs.</li>
           </ul>
           <p>A token that reaches square 100 is <strong class="hl-safe">locked in</strong> — it can't be captured or swapped away. First player to get <strong>both</strong> tokens to exactly square 100 wins!</p>
         </div>

@@ -16,6 +16,7 @@ const CARD_META = {
   [CARD_TYPES.SHIELD]: { icon: Icon.shield, label: 'Shield' },
   [CARD_TYPES.SWAP]: { icon: Icon.swap, label: 'Swap' },
   [CARD_TYPES.DOUBLE_MOVE]: { icon: Icon.fastForward, label: 'Double' },
+  [CARD_TYPES.TRAP]: { icon: Icon.trap, label: 'Trap' },
 };
 
 const el = (id) => document.getElementById(id);
@@ -28,6 +29,14 @@ export function initStaticIcons() {
     const icon = Icon[node.dataset.icon];
     if (icon) node.innerHTML = icon;
   });
+}
+
+// Stamps data-theme on <html> so style.css's [data-theme="light"] overrides
+// (or lack thereof, for dark) take effect. Dark is the implicit default from
+// :root's own variable values, but the attribute is set explicitly either
+// way for clarity.
+export function applyTheme() {
+  document.documentElement.setAttribute('data-theme', Settings.isDarkTheme() ? 'dark' : 'light');
 }
 
 function escapeHtml(text) {
@@ -74,7 +83,9 @@ const SOUND_FREQS = {
   ladder: [440, 660, 880],
   snake: [500, 300, 180],
   card: [520, 660],
+  cardEmpty: [260, 190],
   shieldSave: [660, 880, 990],
+  trap: [210, 150, 100],
   win: [523, 659, 784, 1046],
   lose: [300, 250, 200],
 };
@@ -319,6 +330,14 @@ export function initBoard() {
   BoardData.LADDERS.forEach((l) => squareEls[l.to]?.classList.add('ladder-end'));
   BoardData.SNAKES.forEach((s) => squareEls[s.to]?.classList.add('snake-end'));
 
+  // One-time staggered pop-in for every ladder/snake/card square icon when
+  // the board first mounts — echoes the main-menu critter animation so the
+  // two screens feel like part of the same toy.
+  boardEl.querySelectorAll('.square-icon').forEach((iconEl, i) => {
+    iconEl.classList.add('board-icon-settle');
+    iconEl.style.animationDelay = `${Math.min(i * 14, 500)}ms`;
+  });
+
   boardEl.appendChild(buildConnectionsSvg());
 
   tokensLayerEl = document.createElement('div');
@@ -409,6 +428,48 @@ function flashSquare(square) {
   setTimeout(() => sqEl.classList.remove('flash'), 650);
 }
 
+// ---------------------------------------------------------------- traps
+// Placement mode: highlights every currently-eligible square as clickable
+// while a Trap card is being played, instead of a modal — placing a trap
+// directly on the board it affects is the more natural interaction.
+export function enterTrapPlacementMode(isEligible, onPick) {
+  el('trap-prompt').classList.remove('hidden');
+  for (let sq = 1; sq <= BoardData.LAST_SQUARE; sq++) {
+    const node = squareEls[sq];
+    if (!node || !isEligible(sq)) continue;
+    node.classList.add('trap-target');
+    node.onclick = () => onPick(sq);
+  }
+}
+
+export function exitTrapPlacementMode() {
+  el('trap-prompt').classList.add('hidden');
+  Object.values(squareEls).forEach((node) => {
+    node.classList.remove('trap-target');
+    node.onclick = null;
+  });
+}
+
+// Only ever renders the VIEWER's own traps — the opponent's are deliberately
+// left invisible so a placed trap stays a surprise until it's triggered.
+export function renderTraps(state, myPlayer) {
+  for (let sq = 1; sq <= BoardData.LAST_SQUARE; sq++) {
+    const node = squareEls[sq];
+    if (!node) continue;
+    const owner = state.traps ? state.traps[sq] : undefined;
+    const shouldShow = owner === myPlayer;
+    let marker = node.querySelector('.trap-marker-icon');
+    if (shouldShow && !marker) {
+      marker = document.createElement('span');
+      marker.className = 'trap-marker-icon';
+      marker.innerHTML = Icon.trap;
+      node.appendChild(marker);
+    } else if (!shouldShow && marker) {
+      marker.remove();
+    }
+  }
+}
+
 function flashBoard() {
   if (!boardEl) return;
   boardEl.classList.remove('shake');
@@ -480,6 +541,31 @@ async function animateTraceEntry(entry, touched) {
     await sleep(560);
     tokenEl.classList.remove('sliding');
     flashSquare(entry.to);
+    return;
+  }
+
+  if (entry.kind === 'trap') {
+    touched.add(key);
+    tokenEl.classList.add('sliding');
+    setTokenSquare(tokenEl, entry.to);
+    lastSquareByToken[key] = entry.to;
+    playSound('trap');
+    haptic('capture');
+    flashBoard();
+    await sleep(560);
+    tokenEl.classList.remove('sliding');
+    flashSquare(entry.to);
+    return;
+  }
+
+  if (entry.kind === 'cardEmpty') {
+    // Deliberately no full card-flip reveal here — just enough of a beat
+    // (square flash + a muted "denied" blip) to make clear the square did
+    // something, without pretending a card was actually drawn.
+    flashSquare(entry.at);
+    playSound('cardEmpty');
+    haptic('step');
+    await sleep(280);
     return;
   }
 
@@ -576,6 +662,18 @@ export function renderHeader(state, myPlayer, oppPlayer) {
   renderCardIcons(el('chip-opp-cards'), oppPlayer, state.players[oppPlayer].cards, true);
 
   el('stat-turn').textContent = `Turn ${state.stats.turns + 1}`;
+}
+
+// Subtle colored glow around the game screen's edges echoing whose turn it
+// is (host/guest color, same mapping as the player chips) — readable at a
+// glance without having to read the turn-indicator text, useful when the
+// board itself is zoomed in on mobile. `player` is null to clear it (e.g.
+// game over).
+export function setTurnGlow(player) {
+  const layout = el('game-layout');
+  if (!layout) return;
+  layout.classList.toggle('turn-glow-host', player === 'host');
+  layout.classList.toggle('turn-glow-guest', player === 'guest');
 }
 
 export function renderGameTimer(startedAt, endedAt) {
@@ -1083,6 +1181,7 @@ export function openSettingsModal() {
   el('settings-name').value = Settings.getPlayerName();
   el('settings-sound').checked = Settings.isSoundOn();
   el('settings-haptics').checked = Settings.isHapticsOn();
+  el('settings-theme-dark').checked = Settings.isDarkTheme();
   el('settings-modal').classList.remove('hidden');
 }
 
@@ -1094,4 +1193,8 @@ export function bindSettingsInputs() {
   el('settings-name').addEventListener('change', (e) => Settings.setPlayerName(e.target.value));
   el('settings-sound').addEventListener('change', (e) => Settings.setSoundOn(e.target.checked));
   el('settings-haptics').addEventListener('change', (e) => Settings.setHapticsOn(e.target.checked));
+  el('settings-theme-dark').addEventListener('change', (e) => {
+    Settings.setDarkTheme(e.target.checked);
+    applyTheme();
+  });
 }

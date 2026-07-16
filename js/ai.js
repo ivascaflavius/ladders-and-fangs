@@ -116,6 +116,25 @@ export function chooseTokenMoveOrDouble(state, player, roll) {
   return null;
 }
 
+// Places a trap a few squares ahead of the opponent's most-advanced
+// unfinished token — close enough to have a real chance of being landed on,
+// without scanning the whole board for a low-odds shot. Never peeks at the
+// opponent's own traps to decide anything (the AI has no special knowledge
+// beyond what a human would see), so this stays fair.
+export function chooseTrapSquare(state, player) {
+  if (!state.players[player].cards.includes(CARD_TYPES.TRAP)) return null;
+  const opp = otherPlayer(player);
+  const oppTokens = state.players[opp].tokens.filter((pos) => pos !== BoardData.LAST_SQUARE);
+  if (oppTokens.length === 0) return null;
+  const target = Math.max(...oppTokens);
+  for (let offset = 2; offset <= 6; offset++) {
+    const sq = target + offset;
+    if (sq >= BoardData.LAST_SQUARE) continue;
+    if (Game.isTrapPlaceable(state, sq)) return sq;
+  }
+  return null;
+}
+
 export function shouldUseShield(state, player) {
   return state.players[player].cards.includes(CARD_TYPES.SHIELD);
 }

@@ -11,15 +11,20 @@ export const CARD_TYPES = Object.freeze({
   SHIELD: 'shield',
   SWAP: 'swap',
   DOUBLE_MOVE: 'doubleMove',
+  TRAP: 'trap',
 });
 
 export const MAX_CARDS = 2;
-const CARD_POOL = [CARD_TYPES.SHIELD, CARD_TYPES.SWAP, CARD_TYPES.DOUBLE_MOVE];
+const CARD_POOL = [CARD_TYPES.SHIELD, CARD_TYPES.SWAP, CARD_TYPES.DOUBLE_MOVE, CARD_TYPES.TRAP];
 const CARD_LABELS = {
   [CARD_TYPES.SHIELD]: 'Shield',
   [CARD_TYPES.SWAP]: 'Swap',
   [CARD_TYPES.DOUBLE_MOVE]: 'Double Move',
+  [CARD_TYPES.TRAP]: 'Trap',
 };
+
+// How many squares a trap knocks a token back when triggered.
+const TRAP_SETBACK = 4;
 
 export const Phase = Object.freeze({
   ROLLING: 'rolling',
@@ -70,6 +75,12 @@ export function createInitialState(hostName, guestName) {
     // "shield decision continuing the same move" apart.
     moveTrace: [],
     moveTraceId: 0,
+    // { [square]: owningPlayer } — traps placed by the Trap card. Kept out of
+    // BoardData (which is static board layout) since they're dynamic and
+    // player-placed. Rendering deliberately only shows a player their OWN
+    // traps (see ui.js's renderTraps), so the opponent doesn't know where
+    // they are until one is triggered — that's the whole point of the card.
+    traps: {},
     startedAt: Date.now(),
     endedAt: null,
     stats: { turns: 0, cardsPlayed: { host: 0, guest: 0 } },
@@ -119,6 +130,19 @@ export function legalTokenIndices(state, player, roll) {
 // swapped away by an opponent's Swap card either.
 export function isTokenSwappable(square) {
   return square !== BoardData.LAST_SQUARE;
+}
+
+// Whether `square` is currently eligible to have a trap placed on it: an
+// ordinary, unoccupied square with no ladder/snake/card/safe significance
+// (keeps hazard types mutually exclusive, and avoids ambiguity about which
+// effect fires first) and not already trapped.
+export function isTrapPlaceable(state, square) {
+  if (square <= 0 || square >= BoardData.LAST_SQUARE) return false;
+  if (BoardData.isSafeSquare(square)) return false;
+  if (BoardData.isCardSquare(square)) return false;
+  if (state.traps && state.traps[square]) return false;
+  const occupied = ['host', 'guest'].some((p) => state.players[p].tokens.includes(square));
+  return !occupied;
 }
 
 // Pure display helper: where would this token end up if chosen? Resolves
@@ -201,6 +225,10 @@ export function prepareSwapEvent(state, player, myTokenIndex, oppTokenIndex) {
   return { type: 'PLAY_SWAP', player, myTokenIndex, oppTokenIndex };
 }
 
+export function prepareTrapEvent(state, player, square) {
+  return { type: 'PLAY_TRAP', player, square };
+}
+
 export function prepareShieldDecisionEvent(state, player, useShield, auto = false) {
   return { type: 'SHIELD_DECISION', player, useShield, auto };
 }
@@ -229,6 +257,8 @@ export function reduce(state, event) {
       return applyDoubleMove(state, event);
     case 'PLAY_SWAP':
       return applySwap(state, event);
+    case 'PLAY_TRAP':
+      return applyPlayTrap(state, event);
     case 'SHIELD_DECISION':
       return applyShieldDecision(state, event);
     case 'FORFEIT_TURN':
@@ -298,6 +328,26 @@ function applySwap(state, event) {
     pushLog(next, `${next.players[player].name} played Swap!`);
   } else {
     pushLog(next, `${next.players[player].name}'s Swap had no effect — a finished token can't be swapped.`);
+  }
+  return endTurn(next);
+}
+
+// Played instead of rolling, like Swap. Consumes the card and, if the target
+// square is still valid at resolution time, rigs it — the next opponent
+// token that lands there gets knocked back. The log deliberately doesn't
+// name the square (only the owner's client renders a marker on it — see
+// ui.js's renderTraps), so the opponent can't just read the log to dodge it.
+function applyPlayTrap(state, event) {
+  let next = clone(state);
+  const player = event.player;
+  pushLog(next, `Turn ${next.stats.turns + 1} — ${next.players[player].name}`);
+  next.players[player].cards = removeOneCard(next.players[player].cards, CARD_TYPES.TRAP);
+  next.stats.cardsPlayed[player]++;
+  if (isTrapPlaceable(next, event.square)) {
+    next.traps = { ...next.traps, [event.square]: player };
+    pushLog(next, `${next.players[player].name} set a trap somewhere on the board!`);
+  } else {
+    pushLog(next, `${next.players[player].name}'s trap fizzled — that square wasn't valid.`);
   }
   return endTurn(next);
 }
@@ -376,11 +426,21 @@ function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw) {
     });
   }
 
-  if (cardDraw && BoardData.isCardSquare(square)) {
-    if (next.players[player].cards.length < MAX_CARDS) {
+  // Trap check runs regardless of capture — trap squares are never card/safe
+  // squares (isTrapPlaceable enforces that), so it can't double up with the
+  // card-draw block below.
+  resolveTrap(next, player, tokenIndex, square);
+
+  // Card squares always get SOME acknowledgment, even with a full hand —
+  // previously a full hand meant total silence, which looked broken.
+  if (BoardData.isCardSquare(square)) {
+    if (cardDraw && next.players[player].cards.length < MAX_CARDS) {
       next.players[player].cards.push(cardDraw);
       pushTrace(next, { kind: 'card', player, tokenIndex, cardType: cardDraw, at: square });
       pushLog(next, `${next.players[player].name} drew a ${CARD_LABELS[cardDraw]} card!`);
+    } else {
+      pushTrace(next, { kind: 'cardEmpty', player, tokenIndex, at: square });
+      pushLog(next, `${next.players[player].name}'s hand is full — the card square had no effect.`);
     }
   }
 
@@ -422,6 +482,24 @@ function applyShieldDecision(state, event) {
   pushLog(next, `${next.players[player].name}: Token ${tokenIndex + 1} slid ${headSquare} → ${tailSquare}.`);
   next.phase = Phase.CHOOSE_TOKEN;
   return finishMoveStep(next, player, tokenIndex, rest);
+}
+
+// Triggers `player`'s trap at `square` if `player` isn't its owner (a trap
+// never affects its own placer). Mutates state in place like resolveCapture.
+// Returns true if a trap fired.
+function resolveTrap(state, player, tokenIndex, square) {
+  const owner = state.traps ? state.traps[square] : undefined;
+  if (!owner || owner === player) return false;
+  const tokens = state.players[player].tokens;
+  const from = square;
+  const to = Math.max(0, square - TRAP_SETBACK);
+  tokens[tokenIndex] = to;
+  const traps = { ...state.traps };
+  delete traps[square];
+  state.traps = traps;
+  pushTrace(state, { kind: 'trap', player, tokenIndex, from, to, at: square });
+  pushLog(state, `${state.players[player].name}: Token ${tokenIndex + 1} triggered ${state.players[owner].name}'s trap and was knocked back ${from} → ${to}!`);
+  return true;
 }
 
 // Returns the captured token index, or null if nothing was captured.
@@ -479,5 +557,6 @@ function clone(state) {
     pending: state.pending
       ? { ...state.pending, queue: state.pending.queue.map((m) => ({ ...m })), shieldChoice: state.pending.shieldChoice ? { ...state.pending.shieldChoice } : undefined }
       : null,
+    traps: { ...(state.traps || {}) },
   };
 }

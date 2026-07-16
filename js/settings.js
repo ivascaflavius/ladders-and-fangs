@@ -9,6 +9,7 @@ const DEFAULTS = {
   playerName: '',
   soundOn: true,
   hapticsOn: true,
+  themeDark: true,
 };
 
 function randomSuffix() {
@@ -74,6 +75,15 @@ function setHapticsOn(on) {
   persist();
 }
 
+function isDarkTheme() {
+  return state.themeDark !== false;
+}
+
+function setDarkTheme(on) {
+  state.themeDark = !!on;
+  persist();
+}
+
 function onChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -96,6 +106,8 @@ const Settings = {
   setSoundOn,
   isHapticsOn,
   setHapticsOn,
+  isDarkTheme,
+  setDarkTheme,
   onChange,
   vibrate,
 };

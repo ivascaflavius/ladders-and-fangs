@@ -31,6 +31,15 @@ let disconnectDeadline = null;
 // handler (roll button, token taps, card hand) already works unmodified.
 let vsComputer = false;
 let computerActionTimer = null;
+let trapPlacementActive = false;
+// True from the moment we notice the opponent has dropped until they say
+// HELLO again — lets us tell "first handshake of the match" apart from
+// "they actually came back", so the reconnect toast only fires for the
+// latter.
+let opponentWasDisconnected = false;
+// True while we're the one re-establishing a dropped connection (via
+// attemptAutoRejoin) — used the same way, for our own "Reconnected!" toast.
+let isRejoining = false;
 
 // ---------------------------------------------------------------- session persistence
 function saveSession(roomCode, role) {
@@ -162,6 +171,11 @@ function maybeRunComputerTurn() {
 
   if (gameState.phase === Game.Phase.ROLLING) {
     scheduleComputerAction(() => {
+      const trapSquare = AI.chooseTrapSquare(gameState, oppPlayer);
+      if (trapSquare !== null) {
+        applyAndMaybeBroadcast(Game.prepareTrapEvent(gameState, oppPlayer, trapSquare), true);
+        return;
+      }
       const swap = AI.chooseSwap(gameState, oppPlayer);
       if (swap) {
         applyAndMaybeBroadcast(Game.prepareSwapEvent(gameState, oppPlayer, swap.myIdx, swap.oppIdx), true);
@@ -194,6 +208,10 @@ function handleIncoming(data) {
       renderGame();
       UI.hideDisconnectOverlay();
       clearDisconnectTimer();
+      if (opponentWasDisconnected) {
+        opponentWasDisconnected = false;
+        UI.flashEventToast(`${data.name} reconnected!`, Icon.link);
+      }
     } else if (myPlayer === 'host') {
       // Host creates the authoritative initial state once the guest says hi.
       gameState = Game.createInitialState(Settings.getPlayerName(), data.name);
@@ -209,6 +227,18 @@ function handleIncoming(data) {
     UI.hideDisconnectOverlay();
     clearDisconnectTimer();
     enterGameScreen();
+    if (isRejoining) {
+      isRejoining = false;
+      UI.flashEventToast('Reconnected!', Icon.link);
+    }
+    return;
+  }
+
+  // Rematch is deliberately outside game.js's deterministic reducer, same as
+  // HELLO/SYNC_STATE — only the host is authoritative for creating a fresh
+  // match, so a guest's click just forwards a request the host acts on.
+  if (data.type === 'REMATCH_REQUEST') {
+    if (myPlayer === 'host' && gameState) startRematch();
     return;
   }
 
@@ -232,6 +262,7 @@ function wireNetworkEvents() {
 }
 
 function startDisconnectCountdown() {
+  opponentWasDisconnected = true;
   disconnectDeadline = Date.now() + DISCONNECT_GRACE_MS;
   UI.showDisconnectOverlay('Opponent disconnected — waiting to reconnect…', abandonMatch);
   tickDisconnectTimer();
@@ -266,6 +297,10 @@ function abandonMatch() {
   stopRollTimer();
   stopChoiceTimer();
   UI.hideDisconnectOverlay();
+  UI.exitTrapPlacementMode();
+  trapPlacementActive = false;
+  opponentWasDisconnected = false;
+  isRejoining = false;
   resetNetwork();
   gameState = null;
   vsComputer = false;
@@ -277,11 +312,35 @@ function abandonMatch() {
 function startComputerGame() {
   resetNetwork();
   clearTimeout(computerActionTimer);
+  UI.exitTrapPlacementMode();
+  trapPlacementActive = false;
   myPlayer = 'host';
   oppPlayer = 'guest';
   vsComputer = true;
   clearSession(); // single-player has no room to rejoin
   gameState = Game.createInitialState(Settings.getPlayerName(), COMPUTER_NAME);
+  enterGameScreen();
+}
+
+// Starts a fresh match reusing the same connection/room (P2P) or just resets
+// local state (vs computer). Only the host is authoritative for P2P — see
+// the REMATCH_REQUEST handling in handleIncoming for the guest-initiated path.
+function startRematch() {
+  if (vsComputer) {
+    startComputerGame();
+    return;
+  }
+  if (!gameState) return;
+  if (myPlayer !== 'host') {
+    send({ type: 'REMATCH_REQUEST' });
+    UI.flashEventToast('Rematch requested — waiting for the host…', Icon.refresh);
+    return;
+  }
+  const hostName = gameState.players.host.name;
+  const guestName = gameState.players.guest.name;
+  gameState = Game.createInitialState(hostName, guestName);
+  send({ type: 'SYNC_STATE', state: gameState });
+  if (networkRoom) saveSession(networkRoom.roomCode, 'host');
   enterGameScreen();
 }
 
@@ -328,6 +387,7 @@ async function attemptAutoRejoin() {
   resetNetwork();
   myPlayer = session.role;
   oppPlayer = myPlayer === 'host' ? 'guest' : 'host';
+  isRejoining = true;
 
   el('join-connecting-code').textContent = session.roomCode;
   UI.showScreen('screen-join-connecting');
@@ -342,6 +402,7 @@ async function attemptAutoRejoin() {
     // Auto-rejoin failing (e.g. the old opponent is long gone) must not
     // leave a dangling room connection — otherwise the next manual
     // host/join attempt can silently fail to connect.
+    isRejoining = false;
     resetNetwork();
     clearSession();
     UI.showScreen('screen-menu');
@@ -532,7 +593,13 @@ function announceLogEvents() {
     } else if (text.includes('bitten') || text.includes('slid')) {
       UI.playSound('snake');
       UI.haptic('capture');
-    } else if (text.includes('drew a') || text.includes('played')) {
+    } else if (text.includes('triggered') && text.includes('trap')) {
+      UI.playSound('trap');
+      UI.haptic('capture');
+    } else if (text.includes('hand is full')) {
+      UI.playSound('cardEmpty');
+      UI.haptic('step');
+    } else if (text.includes('drew a') || text.includes('played') || text.includes('set a trap')) {
       UI.playSound('card');
       UI.haptic('card');
     }
@@ -552,6 +619,8 @@ function renderGame() {
   UI.renderLeaderboard(gameState, myPlayer, oppPlayer);
   UI.renderCardHand(gameState, myPlayer, onPlayCard);
   UI.renderLog(gameState);
+  UI.renderTraps(gameState, myPlayer);
+  UI.setTurnGlow(gameState.phase === Game.Phase.GAME_OVER ? null : gameState.turn);
 
   const selectable = [];
   if (isMyTurn() && gameState.phase === Game.Phase.CHOOSE_TOKEN) {
@@ -679,6 +748,44 @@ function onPlayCard(cardType, _cardIdx) {
     UI.flashEventToast('Shield activates automatically when a snake bites you', Icon.shield);
     return;
   }
+
+  if (cardType === Game.CARD_TYPES.TRAP) {
+    if (gameState.phase !== Game.Phase.ROLLING) {
+      UI.flashEventToast('Trap: play it instead of rolling, at the start of your turn', Icon.trap);
+      return;
+    }
+    startTrapPlacement();
+    return;
+  }
+}
+
+function startTrapPlacement() {
+  if (!isMyTurn() || gameState.phase !== Game.Phase.ROLLING) return;
+  trapPlacementActive = true;
+  // The 30s roll timer is wall-clock based and keeps ticking regardless of
+  // local UI state — without pausing it here, a placement that takes a
+  // while can get auto-forfeited out from under the player while the board
+  // squares are still sitting there clickable. cancelTrapPlacement()'s
+  // renderGame() call restarts it fresh via updateRollTimer().
+  stopRollTimer();
+  UI.setRollButtonEnabled(false, 'Placing trap…');
+  UI.enterTrapPlacementMode(
+    (square) => Game.isTrapPlaceable(gameState, square),
+    (square) => {
+      trapPlacementActive = false;
+      UI.exitTrapPlacementMode();
+      const event = Game.prepareTrapEvent(gameState, myPlayer, square);
+      UI.playSound('card');
+      UI.haptic('card');
+      applyAndMaybeBroadcast(event, true);
+    },
+  );
+}
+
+function cancelTrapPlacement() {
+  trapPlacementActive = false;
+  UI.exitTrapPlacementMode();
+  renderGame();
 }
 
 function playDoubleMove(auto = false) {
@@ -691,7 +798,7 @@ function playDoubleMove(auto = false) {
 
 let rollInProgress = false;
 function onRollClick() {
-  if (rollInProgress || !isMyTurn() || gameState.phase !== Game.Phase.ROLLING) return;
+  if (rollInProgress || trapPlacementActive || !isMyTurn() || gameState.phase !== Game.Phase.ROLLING) return;
   rollInProgress = true;
   stopRollTimer(); // clicking Roll counts even if the animation runs past the deadline
   UI.setRollButtonEnabled(false, 'Rolling…');
@@ -768,11 +875,17 @@ function bindGameScreen() {
   el('btn-log').addEventListener('click', UI.openLogModal);
   el('btn-log-close').addEventListener('click', UI.closeLogModal);
   el('btn-game-over-log').addEventListener('click', UI.openLogModal);
+  el('btn-rematch').addEventListener('click', startRematch);
+  el('btn-trap-cancel').addEventListener('click', cancelTrapPlacement);
   el('btn-back-to-menu').addEventListener('click', () => {
     clearTimeout(computerActionTimer);
     stopGameTimer();
     stopRollTimer();
     stopChoiceTimer();
+    UI.exitTrapPlacementMode();
+    trapPlacementActive = false;
+    opponentWasDisconnected = false;
+    isRejoining = false;
     resetNetwork();
     gameState = null;
     vsComputer = false;
@@ -789,6 +902,7 @@ function bindSettingsModal() {
 
 // ---------------------------------------------------------------- boot
 function boot() {
+  UI.applyTheme();
   UI.initStaticIcons();
   UI.initBoard();
   bindMenu();

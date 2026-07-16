@@ -11,6 +11,7 @@
     radial-gradient(900px 600px at 50% 115%, #241636 0%, rgba(19, 16, 34, 0) 55%);
   --panel: #211b34;
   --panel-2: #191428;
+  --panel-top: #2a2342;
   --panel-border: #3d3357;
   --gold: #d4b078;
   --gold-dim: #8d7550;
@@ -32,6 +33,7 @@
   --safe-bg-2: #173328;
   --card-bg: #4a3a75;
   --card-bg-2: #382a5c;
+  --card-highlight: #c9b6ff;
   --ladder-color: #e5af62;
   --ladder-shadow: #3c2712;
   --snake-color: #e34b66;
@@ -44,6 +46,59 @@
 
   --font-display: "Fredoka", "Segoe UI", system-ui, sans-serif;
   --font-body: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Light "parchment" theme — same board-game bones, paper-and-ink palette.
+   Toggled via Settings (default off); ui.js's applyTheme() stamps
+   data-theme on <html>. Wood-frame/snake-outline tones are shared with dark
+   since they're meant to read as physical materials regardless of "room
+   lighting". */
+:root[data-theme="light"] {
+  --bg: #ece0c4;
+  --bg-glow:
+    radial-gradient(1100px 700px at 50% -12%, #fbf1d8 0%, rgba(236, 224, 196, 0) 60%),
+    radial-gradient(900px 600px at 50% 115%, #e4d5ac 0%, rgba(236, 224, 196, 0) 55%);
+  --panel: #faf1dc;
+  --panel-2: #f3e6c4;
+  --panel-top: #fffbf1;
+  --panel-border: #c9a565;
+  --gold: #8a5a22;
+  --gold-dim: #a97d3e;
+  --text: #2c2013;
+  --text-dim: #6b5a3e;
+  --accent: #2f9e63;
+  --accent-dim: #1f7048;
+  --danger: #c1394d;
+
+  --host-color: #1f9f66;
+  --host-color-2: #146b45;
+  --guest-color: #d1811d;
+  --guest-color-2: #a5650f;
+
+  --square-bg: #f6e9c9;
+  --square-bg-2: #eeddb2;
+  --square-alt-bg: #e9dcb6;
+  --safe-bg: #d9ecd4;
+  --safe-bg-2: #c3ddbb;
+  --card-bg: #ded0ee;
+  --card-bg-2: #cbb4e2;
+  --card-highlight: #6b3fa0;
+  --ladder-color: #935e28;
+  --snake-color: #c1394d;
+  --snake-belly: #ffd9df;
+}
+
+:root[data-theme="light"] .title {
+  background: linear-gradient(135deg, #4a2e0a, var(--host-color) 55%, var(--guest-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+:root[data-theme="light"] .icon-btn,
+:root[data-theme="light"] .btn-secondary {
+  background: linear-gradient(180deg, #fbf1d8, #efe0b9);
+  color: var(--text);
+  box-shadow: 0 3px 0 #cbb27f, 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -112,7 +167,7 @@ html, body {
    brass hairline just inside the border. */
 .panel {
   position: relative;
-  background: linear-gradient(180deg, #2a2342, var(--panel) 45%, var(--panel-2));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel) 45%, var(--panel-2));
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: clamp(20px, 5vmin, 40px);
@@ -473,11 +528,42 @@ h2 {
 }
 
 .game-layout {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Subtle colored glow around the screen edges echoing whose turn it is —
+   readable at a glance without reading the turn-indicator text. Sits behind
+   the overlay modals (DOM order, no explicit z-index) so it never competes
+   with them visually. */
+.game-layout::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease, box-shadow 0.4s ease;
+}
+
+.game-layout.turn-glow-host::after {
+  opacity: 1;
+  box-shadow: inset 0 0 28px 2px rgba(56, 214, 143, 0.32), inset 0 0 0 2px rgba(56, 214, 143, 0.45);
+  animation: turn-glow-pulse 2.4s ease-in-out infinite;
+}
+
+.game-layout.turn-glow-guest::after {
+  opacity: 1;
+  box-shadow: inset 0 0 28px 2px rgba(255, 179, 71, 0.32), inset 0 0 0 2px rgba(255, 179, 71, 0.45);
+  animation: turn-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes turn-glow-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
 .game-header {
@@ -494,7 +580,7 @@ h2 {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(14px, 3.2vmin, 17px);
-  background: linear-gradient(180deg, #2b2447, var(--panel-2));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-2));
   border: 1px solid var(--panel-border);
   border-radius: 10px;
   padding: 8px 10px;
@@ -666,7 +752,7 @@ h2 {
   align-items: flex-start;
   justify-content: flex-start;
   font-size: clamp(9px, 2.1vmin, 13px);
-  color: #cfc7e6;
+  color: var(--text-dim);
   padding: 2px 3px;
   overflow: visible;
 }
@@ -723,6 +809,84 @@ h2 {
 
 .square.flash {
   animation: square-flash 0.6s ease;
+}
+
+/* One-time staggered pop-in for ladder/snake/card icons when the board first
+   mounts, echoing the main-menu critter animation (ui.js sets the delay). */
+.square-icon.board-icon-settle {
+  animation: board-icon-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes board-icon-pop {
+  0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.25) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* -------- trap card: placement highlighting + own-trap markers -------- */
+
+.square.trap-target {
+  cursor: pointer;
+  touch-action: manipulation;
+  animation: trap-target-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes trap-target-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--gold); }
+  50% { box-shadow: inset 0 0 0 2px var(--gold), inset 0 0 14px rgba(212, 176, 120, 0.5); }
+}
+
+.trap-marker-icon {
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  width: clamp(11px, 2.6vmin, 16px);
+  height: clamp(11px, 2.6vmin, 16px);
+  color: var(--danger);
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+  animation: trap-marker-pulse 1.6s ease-in-out infinite;
+}
+
+.trap-marker-icon .icon-svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes trap-marker-pulse {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.trap-prompt {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(20, 15, 32, 0.92);
+  border: 1px solid var(--gold-dim);
+  border-radius: 999px;
+  padding: 8px 10px 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  max-width: 92vw;
+}
+
+.trap-prompt.hidden {
+  display: none;
+}
+
+.trap-prompt .btn {
+  padding: 6px 14px;
+  min-height: 32px;
+  font-size: 12px;
 }
 
 @keyframes square-flash {
@@ -1247,7 +1411,7 @@ h2 {
 }
 
 .overlay-panel {
-  background: linear-gradient(180deg, #2a2342, var(--panel) 45%, var(--panel-2));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel) 45%, var(--panel-2));
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 20px;
@@ -1287,7 +1451,7 @@ h2 {
 .dice-modal-face {
   font-size: clamp(64px, 18vmin, 100px);
   line-height: 1;
-  color: #fff8ec;
+  color: var(--text);
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
 }
 
@@ -1366,7 +1530,7 @@ h2 {
 
 .dice-modal-choice-selected {
   border-color: var(--accent);
-  background: linear-gradient(160deg, #234433, var(--square-alt-bg));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 22%, var(--square-alt-bg)), var(--square-alt-bg));
   box-shadow: 0 0 0 1px var(--accent) inset;
 }
 
@@ -1629,7 +1793,7 @@ h2 {
 }
 
 .hl-card {
-  color: #c9b6ff;
+  color: var(--card-highlight);
 }
 
 .shield-icon {

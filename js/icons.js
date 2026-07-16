@@ -90,6 +90,11 @@ export const Icon = {
 
   fang: svg(`<path d="M7 4c0 4.5 1.4 6.8 2.7 6.8S12.3 8.5 12.3 4M12.3 4c0 4.5 1.4 6.8 2.7 6.8S17.6 8.5 17.6 4" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>`),
 
+  // Caltrop/spike-mine glyph for the Trap card and its on-board markers.
+  trap: svg(`<path d="M12 3v18M3 12h18M6.5 6.5l11 11M17.5 6.5l-11 11" ${T}/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>`),
+
+  moon: svg(`<path d="M20 14.2A8.3 8.3 0 1110.3 4a6.7 6.7 0 009.7 10.2z" fill="currentColor" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>`),
+
   shield:
     '<svg class="icon-svg shield-icon" viewBox="0 0 24 24" aria-hidden="true">' +
     '<defs><linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">' +

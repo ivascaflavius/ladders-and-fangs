@@ -14,19 +14,27 @@ A strategy twist on Snakes & Ladders, playable P2P with a friend — no server r
 - Land exactly on a **card square** to draw a power-up card (max 2 held at once):
   - 🛡 **Shield** — cancels a snake bite when it happens, keeping your token in place.
   - 🔀 **Swap** — play instead of rolling; swap one of your tokens with any opponent token.
-  - ⏩ **Double Move** — play right after rolling; move *both* of your tokens by the roll instead of just one.
+  - ⏩ **Double Move** — play right after rolling; move *both* of your tokens by the roll instead of just one. If one of your tokens is already locked in at 100, it instead sends your other token twice as far (roll × 2).
+  - 🪤 **Trap** — play instead of rolling; pick an empty, ordinary square to rig. If your opponent's token lands there, it gets knocked back a few squares. Shield doesn't block it (Shield only stops snakes). Traps are hidden — you only ever see your own on the board, never your opponent's, until one springs.
 - First player to get **both** tokens to exactly square 100 wins.
+- Landing on a card square with a full hand (max 2 cards) still gets an acknowledgment — a log line and a quick toast — instead of silently doing nothing.
 
 ### Host or Join
 
 - **Host a Game** generates a short room code — share it with your opponent.
 - **Join a Game** connects you to their code.
 - No accounts, no server: connections are made peer-to-peer over WebRTC via [Trystero](https://github.com/dmotz/trystero).
+- When your opponent's connection drops mid-match, you'll see a reconnect toast the moment they (or you, after a refresh) come back — not just a disconnect notice.
+- **Rematch** on the game-over screen starts a fresh match without a trip back to the main menu. In a P2P match the host is authoritative for starting it (a guest's click just asks the host to).
 
 ### Play vs Computer
 
 - No opponent handy? **Play vs Computer** starts an instant local match against an AI opponent — no room code, no networking.
-- The AI (`js/ai.js`) is a hand-tuned heuristic, not a lookup table or minimax search: for every decision (which token to move, whether to play Double Move/Shield/Swap) it scores the legal options and picks the best one, weighing finishing/locking a token in highest, then ladder climbs, capturing an opponent token, avoiding squares the opponent could capture on their next roll, and picking up cards. It always uses Shield when bitten, and only plays Swap when trading token positions clearly favors it (since Swap costs a whole turn).
+- The AI (`js/ai.js`) is a hand-tuned heuristic, not a lookup table or minimax search: for every decision (which token to move, whether to play Double Move/Shield/Swap) it scores the legal options and picks the best one, weighing finishing/locking a token in highest, then ladder climbs, capturing an opponent token, avoiding squares the opponent could capture on their next roll, and picking up cards. It always uses Shield when bitten, and only plays Swap when trading token positions clearly favors it (since Swap costs a whole turn). It'll place a Trap a few squares ahead of your most-advanced token when it holds one, without ever reading where *your* traps are — it plays as blind to that as a human would.
+
+## Theme
+
+Settings has a **Dark Theme** toggle (on by default) for a light "parchment" look, if you'd rather have a paper-and-ink board than the default ink-purple night table.
 
 ## Running locally
 

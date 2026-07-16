@@ -18,11 +18,11 @@
           <svg class="menu-ladder-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 2.5v19M16 2.5v19M8 7h8M8 11.5h8M8 16h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
-          <svg class="menu-snake-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path class="menu-snake-torso" d="M7 35c5-6 -3-11 2-17s11-3 12-11" stroke="currentColor" stroke-width="6.5" stroke-linecap="round"/>
-            <circle class="menu-snake-head" cx="22.5" cy="6.5" r="7" fill="currentColor"/>
-            <circle cx="25.2" cy="4" r="1.3" fill="#0d0e18"/>
-            <path class="menu-snake-tongue" d="M26.5 1.6l3.6 -2.4M26.5 1.6l3.2 2" stroke="var(--danger)" stroke-width="1.6" stroke-linecap="round"/>
+          <svg class="menu-snake-icon" viewBox="-2 -4 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path class="menu-snake-torso" d="M33 35c-5-6 3-11 -2-17s-11-3 -12-11" stroke="currentColor" stroke-width="6.5" stroke-linecap="round"/>
+            <circle class="menu-snake-head" cx="17.5" cy="6.5" r="7" fill="currentColor"/>
+            <circle cx="14.8" cy="4" r="1.3" fill="#0d0e18"/>
+            <path class="menu-snake-tongue" d="M11 4c-2.4-1.6 -.6-4.4-3.4-3.4M7.6 0.6l-2.4-1M7.6 0.6l-1 2.2" stroke="var(--danger)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         <p class="subtitle">A strategy twist on Snakes &amp; Ladders</p>
@@ -36,6 +36,7 @@
         </button>
         <button id="btn-host" class="btn btn-primary btn-menu" type="button"><span class="btn-menu-icon" data-icon="dice"></span>Host a Game</button>
         <button id="btn-join" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="link"></span>Join a Game</button>
+        <button id="btn-vs-computer" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="computer"></span>Play vs Computer</button>
         <button id="btn-howtoplay" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon" data-icon="help"></span>How to Play</button>
         <button id="btn-settings" class="btn btn-ghost btn-menu" type="button"><span class="btn-menu-icon" data-icon="gear"></span>Settings</button>
       </div>
@@ -137,15 +138,6 @@
         </footer>
       </div>
 
-      <!-- event log (modal) -->
-      <div id="log-modal" class="overlay hidden">
-        <div class="overlay-panel log-modal-panel">
-          <h2><span data-icon="scroll"></span> Event Log</h2>
-          <div id="event-log" class="event-log" aria-live="polite"></div>
-          <button id="btn-log-close" class="btn btn-primary" type="button">Close</button>
-        </div>
-      </div>
-
       <!-- centered dice roll / token choice modal -->
       <div id="dice-modal" class="overlay hidden">
         <div class="overlay-panel dice-modal-panel">
@@ -205,10 +197,21 @@
     <section id="screen-game-over" class="screen">
       <div class="panel">
         <h2 id="game-over-title">Game Over</h2>
+        <div id="game-over-tokens" class="game-over-tokens"></div>
         <div id="game-over-stats" class="game-over-stats"></div>
+        <button id="btn-game-over-log" class="btn btn-secondary" type="button"><span data-icon="scroll"></span> View Event Log</button>
         <button id="btn-back-to-menu" class="btn btn-primary" type="button">Back to Menu</button>
       </div>
     </section>
+
+    <!-- event log (modal, overlays any screen) -->
+    <div id="log-modal" class="overlay hidden">
+      <div class="overlay-panel log-modal-panel">
+        <h2><span data-icon="scroll"></span> Event Log</h2>
+        <div id="event-log" class="event-log" aria-live="polite"></div>
+        <button id="btn-log-close" class="btn btn-primary" type="button">Close</button>
+      </div>
+    </div>
 
     <!-- ===================== SETTINGS (modal, overlays any screen) ===================== -->
     <div id="settings-modal" class="overlay hidden">
@@ -244,6 +247,7 @@
       <div class="overlay-panel howtoplay-panel">
         <h2>How to Play</h2>
         <div class="howtoplay-body">
+          <p>No one to play with? Pick <strong>Play vs Computer</strong> from the main menu — the AI opponent rolls, chooses moves, and plays cards to try to win, so you can play solo any time.</p>
           <p>Each player controls <strong>2 tokens</strong>, both starting off-board. Roll a die, then choose which token to move — that choice is the game.</p>
           <p>A token can't overshoot square 100; it must land exactly on it.</p>
           <p>Land exactly on an opponent's token to send it back to start — unless that square is <strong class="hl-safe">safe</strong> (ladder bottoms, snake heads, and square 1).</p>
@@ -252,7 +256,7 @@
           <ul>
             <li><span class="inline-icon" data-icon="shield"></span> <strong>Shield</strong> — automatic/reactive. You don't tap it — it kicks in on its own the moment one of your tokens would be bitten by a snake, keeping the token in place instead of sliding down.</li>
             <li><span class="inline-icon" data-icon="swap"></span> <strong>Swap</strong> — tap it on your turn <em>instead of</em> rolling; pick one of your tokens and one opponent token to swap positions.</li>
-            <li><span class="inline-icon" data-icon="fastForward"></span> <strong>Double Move</strong> — after you roll, it appears as an extra option next to your token choices; pick it to move both your tokens by the roll instead of just one.</li>
+            <li><span class="inline-icon" data-icon="fastForward"></span> <strong>Double Move</strong> — after you roll, it appears as an extra option next to your token choices; pick it to move both your tokens by the roll instead of just one. If one token is already locked in at 100, it instead sends your other token twice as far (roll × 2).</li>
           </ul>
           <p>A token that reaches square 100 is <strong class="hl-safe">locked in</strong> — it can't be captured or swapped away. First player to get <strong>both</strong> tokens to exactly square 100 wins!</p>
         </div>

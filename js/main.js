@@ -14,8 +14,10 @@ import {
 import * as Game from './game.js';
 import * as UI from './ui.js';
 import { Icon } from './icons.js';
+import * as AI from './ai.js';
 
 const SESSION_KEY = 'laddersAndFangs.session.v1';
+const COMPUTER_NAME = 'Computer';
 
 let networkRoom = null;
 let gameState = null;
@@ -23,6 +25,12 @@ let myPlayer = null; // 'host' | 'guest'
 let oppPlayer = null;
 let disconnectTimer = null;
 let disconnectDeadline = null;
+// Single-player mode: no networkRoom at all — the "opponent" (always
+// 'guest') is played by js/ai.js instead of a remote peer. myPlayer is
+// always 'host' in this mode so every existing isMyTurn()-gated input
+// handler (roll button, token taps, card hand) already works unmodified.
+let vsComputer = false;
+let computerActionTimer = null;
 
 // ---------------------------------------------------------------- session persistence
 function saveSession(roomCode, role) {
@@ -108,6 +116,9 @@ function processStateChange({ skipAnimation = false } = {}) {
       // eslint-disable-next-line no-console
       console.error('Animation pipeline error', err);
       renderGame();
+    })
+    .then(() => {
+      if (vsComputer) maybeRunComputerTurn();
     });
   return animationChain;
 }
@@ -116,6 +127,56 @@ function applyAndMaybeBroadcast(event, broadcast) {
   gameState = Game.reduce(gameState, event);
   if (broadcast) send(event);
   processStateChange();
+}
+
+// ---------------------------------------------------------------- computer opponent (single-player)
+// Runs one decision for the AI's turn, then relies on processStateChange's
+// chain to call this again once the resulting animation/state settles —
+// naturally advancing through ROLLING -> CHOOSE_TOKEN -> (SHIELD_DECISION?)
+// -> back to the human's turn, one scheduled step at a time.
+function maybeRunComputerTurn() {
+  if (!vsComputer || !gameState || gameState.turn !== oppPlayer) return;
+  if (gameState.phase === Game.Phase.GAME_OVER) return;
+
+  if (gameState.phase === Game.Phase.SHIELD_DECISION) {
+    if (!gameState.pending || gameState.pending.player !== oppPlayer) return;
+    scheduleComputerAction(() => {
+      const useShield = AI.shouldUseShield(gameState, oppPlayer);
+      applyAndMaybeBroadcast(Game.prepareShieldDecisionEvent(gameState, oppPlayer, useShield), true);
+    });
+    return;
+  }
+
+  if (gameState.phase === Game.Phase.CHOOSE_TOKEN) {
+    scheduleComputerAction(() => {
+      const decision = AI.chooseTokenMoveOrDouble(gameState, oppPlayer, gameState.lastRoll);
+      if (!decision) return;
+      if (decision.type === 'double') {
+        applyAndMaybeBroadcast(Game.prepareDoubleMoveEvent(gameState, oppPlayer), true);
+      } else {
+        applyAndMaybeBroadcast(Game.prepareChooseTokenEvent(gameState, oppPlayer, decision.tokenIndex), true);
+      }
+    });
+    return;
+  }
+
+  if (gameState.phase === Game.Phase.ROLLING) {
+    scheduleComputerAction(() => {
+      const swap = AI.chooseSwap(gameState, oppPlayer);
+      if (swap) {
+        applyAndMaybeBroadcast(Game.prepareSwapEvent(gameState, oppPlayer, swap.myIdx, swap.oppIdx), true);
+        return;
+      }
+      applyAndMaybeBroadcast(Game.prepareRollEvent(gameState, oppPlayer), true);
+    });
+  }
+}
+
+// A short "thinking" delay before each computer action — instant decisions
+// would feel jarring and make its moves hard to follow.
+function scheduleComputerAction(fn) {
+  clearTimeout(computerActionTimer);
+  computerActionTimer = setTimeout(fn, 650 + Math.random() * 500);
 }
 
 // ---------------------------------------------------------------- incoming events
@@ -200,14 +261,28 @@ function clearDisconnectTimer() {
 // stuck on the disconnect screen with a dead button.
 function abandonMatch() {
   clearDisconnectTimer();
+  clearTimeout(computerActionTimer);
   stopGameTimer();
   stopRollTimer();
   stopChoiceTimer();
   UI.hideDisconnectOverlay();
   resetNetwork();
   gameState = null;
+  vsComputer = false;
   clearSession();
   UI.showScreen('screen-menu');
+}
+
+// ---------------------------------------------------------------- vs computer
+function startComputerGame() {
+  resetNetwork();
+  clearTimeout(computerActionTimer);
+  myPlayer = 'host';
+  oppPlayer = 'guest';
+  vsComputer = true;
+  clearSession(); // single-player has no room to rejoin
+  gameState = Game.createInitialState(Settings.getPlayerName(), COMPUTER_NAME);
+  enterGameScreen();
 }
 
 // ---------------------------------------------------------------- host / join flows
@@ -290,16 +365,16 @@ function stopGameTimer() {
   }
 }
 
-// Both players see the countdown for whoever's turn it is to roll, but only
-// the active player's own client is responsible for broadcasting the
-// forfeit — otherwise both peers would race to send duplicate events.
+// The countdown only needs to display for the player whose own client would
+// broadcast the forfeit — showing it while watching the opponent (or the
+// computer) roll would tick down to zero for no reason on the passive side.
 const ROLL_TIME_LIMIT_SEC = 30;
 let rollTimerInterval = null;
 let rollTimerDeadline = null;
 let rollTimerKey = null;
 
 function updateRollTimer() {
-  if (!gameState || gameState.phase !== Game.Phase.ROLLING) {
+  if (!gameState || gameState.phase !== Game.Phase.ROLLING || !isMyTurn()) {
     stopRollTimer();
     return;
   }
@@ -492,7 +567,13 @@ function renderGame() {
   if (isMyTurn() && gameState.phase === Game.Phase.CHOOSE_TOKEN) {
     const legal = Game.legalTokenIndices(gameState, myPlayer, gameState.lastRoll);
     const hasDoubleMove = gameState.players[myPlayer].cards.includes(Game.CARD_TYPES.DOUBLE_MOVE);
-    if (legal.length > 1 || (legal.length === 1 && hasDoubleMove)) {
+    // Double Move can rescue an otherwise-forfeited roll (e.g. one token is
+    // already locked at 100 and the other can't fit the roll normally, but
+    // could fit roll*2) — game.js's applyRoll already accounted for this when
+    // deciding to enter CHOOSE_TOKEN at all, so the modal must offer it even
+    // with zero normally-legal token moves.
+    const doubleMoveViable = hasDoubleMove && Game.canPlayDoubleMove(gameState, myPlayer, gameState.lastRoll);
+    if (legal.length > 1 || (legal.length === 1 && hasDoubleMove) || (legal.length === 0 && doubleMoveViable)) {
       // If we got here without the roll animation having run (e.g. a fresh
       // SYNC_STATE arrived mid-choice on reconnect), open the modal directly.
       if (!UI.isDiceModalOpen()) {
@@ -538,11 +619,17 @@ function renderGame() {
     const didWin = gameState.winner === myPlayer;
     UI.playSound(didWin ? 'win' : 'lose');
     UI.haptic(didWin ? 'win' : 'move');
+    const loserPlayer = gameState.winner === 'host' ? 'guest' : 'host';
     const stats = {
       durationMs: (gameState.endedAt || Date.now()) - gameState.startedAt,
       turns: gameState.stats.turns,
       myCardsPlayed: gameState.stats.cardsPlayed[myPlayer],
       oppCardsPlayed: gameState.stats.cardsPlayed[oppPlayer],
+      winnerPlayer: gameState.winner,
+      loserPlayer,
+      loserName: gameState.players[loserPlayer].name,
+      winnerTokens: gameState.players[gameState.winner].tokens,
+      loserTokens: gameState.players[loserPlayer].tokens,
     };
     UI.showGameOver(didWin, gameState.players[myPlayer].name, gameState.players[gameState.winner].name, stats);
     clearSession();
@@ -618,7 +705,10 @@ function onRollClick() {
 }
 
 function quitGame() {
-  UI.showConfirm('Quit this match? Your opponent will see you as disconnected.', abandonMatch);
+  const message = vsComputer
+    ? 'Quit this match?'
+    : 'Quit this match? Your opponent will see you as disconnected.';
+  UI.showConfirm(message, abandonMatch);
 }
 
 // ---------------------------------------------------------------- generic DOM helpers
@@ -635,6 +725,7 @@ function renderIdentityChip() {
 function bindMenu() {
   el('btn-host').addEventListener('click', hostGame);
   el('btn-join').addEventListener('click', () => UI.showScreen('screen-join-enter'));
+  el('btn-vs-computer').addEventListener('click', startComputerGame);
   el('btn-settings').addEventListener('click', UI.openSettingsModal);
   el('btn-menu-identity').addEventListener('click', UI.openSettingsModal);
   el('btn-howtoplay').addEventListener('click', UI.openHowToPlay);
@@ -675,12 +766,15 @@ function bindGameScreen() {
   el('btn-howtoplay-ingame').addEventListener('click', UI.openHowToPlay);
   el('btn-log').addEventListener('click', UI.openLogModal);
   el('btn-log-close').addEventListener('click', UI.closeLogModal);
+  el('btn-game-over-log').addEventListener('click', UI.openLogModal);
   el('btn-back-to-menu').addEventListener('click', () => {
+    clearTimeout(computerActionTimer);
     stopGameTimer();
     stopRollTimer();
     stopChoiceTimer();
     resetNetwork();
     gameState = null;
+    vsComputer = false;
     clearSession();
     UI.showScreen('screen-menu');
   });

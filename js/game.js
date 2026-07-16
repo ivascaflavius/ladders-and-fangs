@@ -47,12 +47,7 @@ function drawRandomCardType() {
 function computeCardDraw(state, player, square) {
   if (!BoardData.isCardSquare(square)) return null;
   if (state.players[player].cards.length >= MAX_CARDS) return null;
-  // Double Move is a dead draw once a token is already locked in at 100 (it
-  // can never move again), so it's excluded from the pool for that player —
-  // no point handing them a card that does nothing.
-  const hasLockedToken = state.players[player].tokens.includes(BoardData.LAST_SQUARE);
-  const pool = hasLockedToken ? CARD_POOL.filter((c) => c !== CARD_TYPES.DOUBLE_MOVE) : CARD_POOL;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return CARD_POOL[Math.floor(Math.random() * CARD_POOL.length)];
 }
 
 export function createInitialState(hostName, guestName) {
@@ -166,9 +161,33 @@ export function prepareChooseTokenEvent(state, player, tokenIndex, auto = false)
   };
 }
 
+// Whether Double Move currently does anything useful: normally it moves both
+// tokens by the roll, but once one token is already locked at 100 that half
+// of the card is dead weight. In that case the card instead sends the other
+// (still-moving) token forward by roll * 2 — so the card stays worth holding
+// even after a player finishes their first token.
+export function canPlayDoubleMove(state, player, roll) {
+  const tokens = state.players[player].tokens;
+  const lockedIdx = tokens.indexOf(BoardData.LAST_SQUARE);
+  if (lockedIdx !== -1) {
+    const otherIdx = lockedIdx === 0 ? 1 : 0;
+    return tokens[otherIdx] + roll * 2 <= BoardData.LAST_SQUARE;
+  }
+  return tokens.some((pos) => pos + roll <= BoardData.LAST_SQUARE);
+}
+
 export function prepareDoubleMoveEvent(state, player, auto = false) {
   const roll = state.lastRoll;
   const tokens = state.players[player].tokens;
+  const lockedIdx = tokens.indexOf(BoardData.LAST_SQUARE);
+  if (lockedIdx !== -1) {
+    const otherIdx = lockedIdx === 0 ? 1 : 0;
+    const dest = tokens[otherIdx] + roll * 2;
+    const queue = dest <= BoardData.LAST_SQUARE
+      ? [{ tokenIndex: otherIdx, roll: roll * 2, cardDraw: computeCardDraw(state, player, dest) }]
+      : [];
+    return { type: 'PLAY_DOUBLE_MOVE', player, queue, auto };
+  }
   const queue = [0, 1]
     .filter((i) => tokens[i] + roll <= BoardData.LAST_SQUARE)
     .map((tokenIndex) => {
@@ -227,7 +246,8 @@ function applyRoll(state, event) {
   pushLog(next, `Turn ${next.stats.turns + 1} — ${next.players[event.player].name}`);
   pushLog(next, `${next.players[event.player].name} rolled a ${event.value}.`);
   const legal = legalTokenIndices(next, event.player, event.value);
-  if (legal.length === 0) {
+  const hasDoubleMove = next.players[event.player].cards.includes(CARD_TYPES.DOUBLE_MOVE);
+  if (legal.length === 0 && !(hasDoubleMove && canPlayDoubleMove(next, event.player, event.value))) {
     pushLog(next, `${next.players[event.player].name} has no legal move and forfeits the turn.`);
     return endTurn(next);
   }

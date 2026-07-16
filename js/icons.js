@@ -61,6 +61,8 @@ export const Icon = {
 
   user: svg(`<circle cx="12" cy="8" r="3.6" ${S}/><path d="M4.8 20c1-3.6 3.8-5.5 7.2-5.5s6.2 1.9 7.2 5.5" ${S}/>`),
 
+  computer: svg(`<rect x="4" y="4.5" width="16" height="11" rx="1.8" ${S}/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><path d="M9.5 13.2h5" ${S}/><path d="M9 20h6M12 15.5V20" ${S}/>`),
+
   speaker: svg(`<path d="M4 9.5h3.2L12 6v12l-4.8-3.5H4z" ${S}/><path d="M15.5 9a4 4 0 010 6M18 6.5a7.6 7.6 0 010 11" ${S}/>`),
 
   vibrate: svg(`<rect x="8" y="3.5" width="8" height="17" rx="2" ${S}/><path d="M3 9v6M21 9v6" ${S}/>`),

@@ -157,16 +157,26 @@ html, body {
   50% { transform: translateY(-5px); }
 }
 
+.menu-snake-torso {
+  transform-origin: 33px 35px;
+  animation: menu-tail-wiggle 2.2s ease-in-out infinite;
+}
+
+@keyframes menu-tail-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-5deg); }
+}
+
 .menu-snake-tongue {
-  transform-origin: 26.5px 1.6px;
+  transform-origin: 11px 4px;
   animation: menu-tongue-flick 2.6s ease-in-out infinite;
 }
 
 @keyframes menu-tongue-flick {
-  0%, 78%, 100% { opacity: 0; transform: scaleX(0.3); }
-  84% { opacity: 1; transform: scaleX(1); }
-  90% { opacity: 1; transform: scaleX(0.5); }
-  96% { opacity: 1; transform: scaleX(1); }
+  0%, 78%, 100% { opacity: 0; transform: scale(0.4); }
+  84% { opacity: 1; transform: scale(1); }
+  90% { opacity: 1; transform: scale(0.7); }
+  96% { opacity: 1; transform: scale(1); }
 }
 
 .subtitle {
@@ -1368,6 +1378,56 @@ h2 {
 .card-reveal-front .card-reveal-label {
   font-size: 18px;
   font-weight: 800;
+}
+
+/* ===================== GAME OVER TOKEN SUMMARY ===================== */
+
+.game-over-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--square-bg);
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.game-over-token-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.game-over-token-row.winner {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.game-over-token-label {
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-over-token-values {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.game-over-token-pos {
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.game-over-token-row.winner .game-over-token-pos {
+  color: var(--accent);
 }
 
 /* ===================== GAME OVER STATS ===================== */

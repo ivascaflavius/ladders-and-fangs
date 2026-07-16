@@ -708,40 +708,43 @@ export function showDiceModalTokenChoice(options, onChoose, doubleMove) {
   container.innerHTML = '';
   container.classList.remove('hidden');
 
-  const label = document.createElement('p');
-  label.className = 'dice-modal-prompt';
-  label.textContent = 'Choose a token to move';
-  container.appendChild(label);
+  if (options.length > 0) {
+    const label = document.createElement('p');
+    label.className = 'dice-modal-prompt';
+    label.textContent = 'Choose a token to move';
+    container.appendChild(label);
 
-  const row = document.createElement('div');
-  row.className = 'dice-modal-choice-row';
-  options.forEach((opt) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'dice-modal-choice';
+    const row = document.createElement('div');
+    row.className = 'dice-modal-choice-row';
+    options.forEach((opt) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dice-modal-choice';
 
-    const icon = document.createElement('span');
-    icon.className = `mini-token ${opt.player} idx-${opt.tokenIndex}`;
-    btn.appendChild(icon);
+      const icon = document.createElement('span');
+      icon.className = `mini-token ${opt.player} idx-${opt.tokenIndex}`;
+      btn.appendChild(icon);
 
-    const text = document.createElement('span');
-    const fromLabel = opt.from === 0 ? 'Start' : opt.from;
-    let destIcon = '';
-    if (opt.type === 'ladder') destIcon = ` <span class="inline-icon">${Icon.ladder}</span>`;
-    else if (opt.type === 'snake') destIcon = ` <span class="inline-icon">${Icon.snake}</span>`;
-    else if (BoardData.isCardSquare(opt.to)) destIcon = ` <span class="inline-icon">${Icon.card}</span>`;
-    text.innerHTML = `${fromLabel} → ${opt.to}${destIcon}`;
-    btn.appendChild(text);
+      const text = document.createElement('span');
+      const fromLabel = opt.from === 0 ? 'Start' : opt.from;
+      let destIcon = '';
+      if (opt.type === 'ladder') destIcon = ` <span class="inline-icon">${Icon.ladder}</span>`;
+      else if (opt.type === 'snake') destIcon = ` <span class="inline-icon">${Icon.snake}</span>`;
+      else if (BoardData.isCardSquare(opt.to)) destIcon = ` <span class="inline-icon">${Icon.card}</span>`;
+      if (opt.to === BoardData.LAST_SQUARE) destIcon += ` <span class="inline-icon">${Icon.lock}</span>`;
+      text.innerHTML = `${fromLabel} → ${opt.to}${destIcon}`;
+      btn.appendChild(text);
 
-    btn.addEventListener('click', () => onChoose(opt.tokenIndex));
-    row.appendChild(btn);
-  });
-  container.appendChild(row);
+      btn.addEventListener('click', () => onChoose(opt.tokenIndex));
+      row.appendChild(btn);
+    });
+    container.appendChild(row);
+  }
 
   if (doubleMove) {
     const divider = document.createElement('p');
     divider.className = 'dice-modal-prompt';
-    divider.textContent = 'or play a card instead';
+    divider.textContent = options.length > 0 ? 'or play a card instead' : 'Your other token is locked in — play Double Move to send this one further';
     container.appendChild(divider);
 
     const dmBtn = document.createElement('button');
@@ -937,10 +940,37 @@ function formatDuration(ms) {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
+function formatTokenSquare(square) {
+  return square === BoardData.LAST_SQUARE
+    ? `<span class="inline-icon">${Icon.lock}</span>100`
+    : String(square);
+}
+
+function renderGameOverTokenRow(label, rowClass, player, tokens) {
+  const values = tokens
+    .map((sq, idx) => `<span class="mini-token ${player} idx-${idx}"></span><span class="game-over-token-pos">${formatTokenSquare(sq)}</span>`)
+    .join('');
+  return `
+    <div class="game-over-token-row ${rowClass}">
+      <span class="game-over-token-label">${escapeHtml(label)}</span>
+      <span class="game-over-token-values">${values}</span>
+    </div>
+  `;
+}
+
 export function showGameOver(didWin, myName, winnerName, stats) {
   el('game-over-title').innerHTML = didWin
     ? `You Win! <span class="inline-icon">${Icon.trophy}</span>`
     : escapeHtml(`${winnerName} Wins`);
+
+  const tokensEl = el('game-over-tokens');
+  if (stats && stats.winnerTokens && stats.loserTokens) {
+    tokensEl.innerHTML =
+      renderGameOverTokenRow(`${winnerName} (Winner)`, 'winner', stats.winnerPlayer, stats.winnerTokens) +
+      renderGameOverTokenRow(stats.loserName, 'loser', stats.loserPlayer, stats.loserTokens);
+  } else {
+    tokensEl.innerHTML = '';
+  }
 
   const statsEl = el('game-over-stats');
   if (stats) {

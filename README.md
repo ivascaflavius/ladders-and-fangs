@@ -23,6 +23,11 @@ A strategy twist on Snakes & Ladders, playable P2P with a friend — no server r
 - **Join a Game** connects you to their code.
 - No accounts, no server: connections are made peer-to-peer over WebRTC via [Trystero](https://github.com/dmotz/trystero).
 
+### Play vs Computer
+
+- No opponent handy? **Play vs Computer** starts an instant local match against an AI opponent — no room code, no networking.
+- The AI (`js/ai.js`) is a hand-tuned heuristic, not a lookup table or minimax search: for every decision (which token to move, whether to play Double Move/Shield/Swap) it scores the legal options and picks the best one, weighing finishing/locking a token in highest, then ladder climbs, capturing an opponent token, avoiding squares the opponent could capture on their next roll, and picking up cards. It always uses Shield when bitten, and only plays Swap when trading token positions clearly favors it (since Swap costs a whole turn).
+
 ## Running locally
 
 This is a static site with ES modules, no build step, no bundler:

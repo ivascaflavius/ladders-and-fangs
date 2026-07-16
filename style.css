@@ -450,6 +450,30 @@ h2 {
   text-align: center;
 }
 
+.menu-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.btn-menu-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  min-height: 56px;
+  padding: 10px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.btn-menu-compact .btn-menu-icon {
+  font-size: 20px;
+  width: auto;
+}
+
 .btn-primary {
   background: linear-gradient(180deg, #63dea2, var(--accent) 55%, #3aa76e);
   color: #08130d;
@@ -1767,7 +1791,7 @@ h2 {
 .event-toast {
   position: absolute;
   left: 50%;
-  top: 38%;
+  top: 14%;
   transform: translate(-50%, -50%) scale(0.85);
   max-width: 88%;
   text-align: center;

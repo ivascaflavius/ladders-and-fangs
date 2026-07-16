@@ -16,9 +16,45 @@ import * as UI from './ui.js';
 import { Icon } from './icons.js';
 import * as AI from './ai.js';
 import BoardData from './board-data.js';
+import Stats from './stats.js';
 
 const SESSION_KEY = 'laddersAndFangs.session.v1';
 const COMPUTER_NAME = 'Computer';
+
+// ---------------------------------------------------------------- tab title flash
+// When it's your turn to roll and the tab is backgrounded, flash the title
+// so an async/tabbed-out opponent notices without needing a desktop
+// notification permission.
+const ORIGINAL_TITLE = document.title;
+let titleFlashInterval = null;
+let titleFlashOn = false;
+
+function startTitleFlash() {
+  if (titleFlashInterval) return;
+  titleFlashInterval = setInterval(() => {
+    titleFlashOn = !titleFlashOn;
+    document.title = titleFlashOn ? `\u{1F3B2} Your turn! — ${ORIGINAL_TITLE}` : ORIGINAL_TITLE;
+  }, 1200);
+}
+
+function stopTitleFlash() {
+  if (titleFlashInterval) {
+    clearInterval(titleFlashInterval);
+    titleFlashInterval = null;
+  }
+  document.title = ORIGINAL_TITLE;
+}
+
+function updateTabTitleFlash() {
+  const myTurnToAct = document.hidden && gameState && isMyTurn() && gameState.phase === Game.Phase.ROLLING;
+  if (myTurnToAct) startTitleFlash();
+  else stopTitleFlash();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) stopTitleFlash();
+  else updateTabTitleFlash();
+});
 
 let networkRoom = null;
 let gameState = null;
@@ -41,6 +77,14 @@ let opponentWasDisconnected = false;
 // True while we're the one re-establishing a dropped connection (via
 // attemptAutoRejoin) — used the same way, for our own "Reconnected!" toast.
 let isRejoining = false;
+// Guards against re-recording the same finished match's stats every time
+// renderGame() re-runs while still sitting on the game-over screen.
+let matchStatsRecorded = false;
+// True while WE'VE paused (via the pause menu) — freezes our own timers and
+// the AI. Distinct from remoteOpponentPaused: in a P2P match the opponent
+// pausing shows US a blocking overlay instead, since only they can resume it.
+let isPaused = false;
+let remoteOpponentPaused = false;
 
 // ---------------------------------------------------------------- session persistence
 function saveSession(roomCode, role) {
@@ -145,7 +189,7 @@ function applyAndMaybeBroadcast(event, broadcast) {
 // naturally advancing through ROLLING -> CHOOSE_TOKEN -> (SHIELD_DECISION?)
 // -> back to the human's turn, one scheduled step at a time.
 function maybeRunComputerTurn() {
-  if (!vsComputer || !gameState || gameState.turn !== oppPlayer) return;
+  if (isPaused || !vsComputer || !gameState || gameState.turn !== oppPlayer) return;
   if (gameState.phase === Game.Phase.GAME_OVER) return;
 
   if (gameState.phase === Game.Phase.SHIELD_DECISION) {
@@ -157,9 +201,18 @@ function maybeRunComputerTurn() {
     return;
   }
 
+  if (gameState.phase === Game.Phase.CARD_CHOICE) {
+    if (!gameState.pending || gameState.pending.player !== oppPlayer) return;
+    scheduleComputerAction(() => {
+      const chosenIndex = AI.chooseCardOption(gameState.pending.cardChoice.options);
+      applyAndMaybeBroadcast(Game.prepareCardChoiceEvent(gameState, oppPlayer, chosenIndex), true);
+    });
+    return;
+  }
+
   if (gameState.phase === Game.Phase.CHOOSE_TOKEN) {
     scheduleComputerAction(() => {
-      const decision = AI.chooseTokenMoveOrDouble(gameState, oppPlayer, gameState.lastRoll);
+      const decision = AI.chooseTokenMoveOrDouble(gameState, oppPlayer, gameState.lastRoll, Settings.getAiDifficulty());
       if (!decision) return;
       if (decision.type === 'double') {
         applyAndMaybeBroadcast(Game.prepareDoubleMoveEvent(gameState, oppPlayer), true);
@@ -172,7 +225,7 @@ function maybeRunComputerTurn() {
 
   if (gameState.phase === Game.Phase.ROLLING) {
     scheduleComputerAction(() => {
-      const trapSquare = AI.chooseTrapSquare(gameState, oppPlayer);
+      const trapSquare = AI.chooseTrapSquare(gameState, oppPlayer, Settings.getAiDifficulty());
       if (trapSquare !== null) {
         applyAndMaybeBroadcast(Game.prepareTrapEvent(gameState, oppPlayer, trapSquare), true);
         return;
@@ -243,6 +296,26 @@ function handleIncoming(data) {
     return;
   }
 
+  // Also outside the reducer, same reasoning as REMATCH_REQUEST — pause is a
+  // local UI/timer concern, not part of the synced game state, but the
+  // opponent still needs to know so their client can block interaction too.
+  if (data.type === 'PAUSE') {
+    remoteOpponentPaused = true;
+    stopRollTimer();
+    stopChoiceTimer();
+    // Quits straight away rather than routing through quitGame()'s confirm
+    // dialog — clicking Quit on an overlay that's already asking "do you
+    // want to leave?" shouldn't stack a second confirmation on top of it.
+    UI.showOpponentPausedOverlay(abandonMatch);
+    return;
+  }
+  if (data.type === 'RESUME') {
+    remoteOpponentPaused = false;
+    UI.hideOpponentPausedOverlay();
+    renderGame();
+    return;
+  }
+
   if (!gameState) return; // ignore game events until we have authoritative state
   gameState = Game.reduce(gameState, data);
   processStateChange();
@@ -297,16 +370,20 @@ function abandonMatch() {
   stopGameTimer();
   stopRollTimer();
   stopChoiceTimer();
+  stopTitleFlash();
   UI.hideDisconnectOverlay();
   UI.exitTrapPlacementMode();
   trapPlacementActive = false;
   opponentWasDisconnected = false;
   isRejoining = false;
+  isPaused = false;
+  remoteOpponentPaused = false;
+  UI.hideOpponentPausedOverlay();
   resetNetwork();
   gameState = null;
   vsComputer = false;
   clearSession();
-  UI.showScreen('screen-menu');
+  UI.showScreen('screen-menu'); renderMenuStats();
 }
 
 // ---------------------------------------------------------------- vs computer
@@ -406,7 +483,7 @@ async function attemptAutoRejoin() {
     isRejoining = false;
     resetNetwork();
     clearSession();
-    UI.showScreen('screen-menu');
+    UI.showScreen('screen-menu'); renderMenuStats();
   }
 }
 
@@ -436,7 +513,7 @@ let rollTimerDeadline = null;
 let rollTimerKey = null;
 
 function updateRollTimer() {
-  if (!gameState || gameState.phase !== Game.Phase.ROLLING || !isMyTurn()) {
+  if (isPaused || remoteOpponentPaused || !gameState || gameState.phase !== Game.Phase.ROLLING || !isMyTurn()) {
     stopRollTimer();
     return;
   }
@@ -483,25 +560,39 @@ const CHOICE_TIME_LIMIT_SEC = 30;
 let choiceTimerInterval = null;
 let choiceTimerDeadline = null;
 let choiceTimerKey = null;
-let choiceTimerTarget = null; // 'dice-modal-timer' | 'shield-modal-timer' | 'trap-prompt-timer'
+let choiceTimerTarget = null; // 'dice-modal-timer' | 'shield-modal-timer' | 'trap-prompt-timer' | 'card-choice-timer'
 
 function updateChoiceTimer() {
+  if (isPaused || remoteOpponentPaused) {
+    stopChoiceTimer();
+    return;
+  }
   const tokenChoiceOpen = gameState && isMyTurn() && gameState.phase === Game.Phase.CHOOSE_TOKEN && UI.isDiceModalOpen();
   const shieldChoiceOpen = gameState && gameState.phase === Game.Phase.SHIELD_DECISION
     && gameState.pending && gameState.pending.player === myPlayer;
+  const cardChoiceOpen = gameState && gameState.phase === Game.Phase.CARD_CHOICE
+    && gameState.pending && gameState.pending.player === myPlayer;
   const trapChoiceOpen = trapPlacementActive;
 
-  if (!tokenChoiceOpen && !shieldChoiceOpen && !trapChoiceOpen) {
+  if (!tokenChoiceOpen && !shieldChoiceOpen && !trapChoiceOpen && !cardChoiceOpen) {
     stopChoiceTimer();
     return;
   }
 
-  const target = tokenChoiceOpen ? 'dice-modal-timer' : trapChoiceOpen ? 'trap-prompt-timer' : 'shield-modal-timer';
+  const target = tokenChoiceOpen
+    ? 'dice-modal-timer'
+    : trapChoiceOpen
+      ? 'trap-prompt-timer'
+      : cardChoiceOpen
+        ? 'card-choice-timer'
+        : 'shield-modal-timer';
   const key = tokenChoiceOpen
     ? `choice-${gameState.moveTraceId}`
     : trapChoiceOpen
       ? `trap-${gameState.stats.turns}`
-      : `shield-${gameState.moveTraceId}-${gameState.pending.queue.length}`;
+      : cardChoiceOpen
+        ? `card-${gameState.moveTraceId}-${gameState.pending.queue.length}`
+        : `shield-${gameState.moveTraceId}-${gameState.pending.queue.length}`;
 
   if (key !== choiceTimerKey) {
     choiceTimerKey = key;
@@ -563,6 +654,15 @@ async function resolveChoiceTimeout(target) {
     return;
   }
 
+  if (target === 'card-choice-timer' && gameState.phase === Game.Phase.CARD_CHOICE
+    && gameState.pending && gameState.pending.player === myPlayer) {
+    const chosenIndex = Math.random() < 0.5 ? 0 : 1;
+    await UI.animateModalRoulette('#card-choice-buttons .btn', chosenIndex);
+    const event = Game.prepareCardChoiceEvent(gameState, myPlayer, chosenIndex, true);
+    applyAndMaybeBroadcast(event, true);
+    return;
+  }
+
   if (target === 'trap-prompt-timer' && trapPlacementActive) {
     const eligible = [];
     for (let sq = 1; sq < BoardData.LAST_SQUARE; sq++) {
@@ -590,6 +690,10 @@ function enterGameScreen() {
   lastAnnouncedLogLen = gameState ? gameState.log.length : 0;
   lastAnimatedTraceId = gameState ? gameState.moveTraceId : null;
   lastAnimatedTraceLen = gameState ? gameState.moveTrace.length : 0;
+  matchStatsRecorded = false;
+  isPaused = false;
+  remoteOpponentPaused = false;
+  UI.hideOpponentPausedOverlay();
   UI.resetLogTracking();
   UI.showScreen('screen-game');
   startGameTimer();
@@ -624,7 +728,7 @@ function announceLogEvents() {
     } else if (text.includes('hand is full')) {
       UI.playSound('cardEmpty');
       UI.haptic('step');
-    } else if (text.includes('drew a') || text.includes('played') || text.includes('set a trap')) {
+    } else if (text.includes('drew a') || text.includes('chose a') || text.includes('played') || text.includes('set a trap')) {
       UI.playSound('card');
       UI.haptic('card');
     }
@@ -716,13 +820,30 @@ function renderGame() {
   } else {
     UI.hideOverlay('shield-overlay');
   }
+
+  if (
+    gameState.phase === Game.Phase.CARD_CHOICE &&
+    gameState.pending &&
+    gameState.pending.player === myPlayer
+  ) {
+    UI.showCardChoiceOverlay(gameState.pending.cardChoice.options, (chosenIndex) => {
+      stopChoiceTimer();
+      const event = Game.prepareCardChoiceEvent(gameState, myPlayer, chosenIndex);
+      applyAndMaybeBroadcast(event, true);
+    });
+  } else {
+    UI.hideOverlay('card-choice-overlay');
+  }
   updateChoiceTimer();
+  updateTabTitleFlash();
 
   if (gameState.phase === Game.Phase.GAME_OVER) {
+    stopTitleFlash();
     const didWin = gameState.winner === myPlayer;
     UI.playSound(didWin ? 'win' : 'lose');
     UI.haptic(didWin ? 'win' : 'move');
     const loserPlayer = gameState.winner === 'host' ? 'guest' : 'host';
+    const highlights = Stats.matchHighlights(gameState.log);
     const stats = {
       durationMs: (gameState.endedAt || Date.now()) - gameState.startedAt,
       turns: gameState.stats.turns,
@@ -733,9 +854,17 @@ function renderGame() {
       loserName: gameState.players[loserPlayer].name,
       winnerTokens: gameState.players[gameState.winner].tokens,
       loserTokens: gameState.players[loserPlayer].tokens,
+      longestSlide: highlights.longestSlide,
+      longestClimb: highlights.longestClimb,
+      trapsSprungTotal: highlights.trapsSprungTotal,
     };
     UI.showGameOver(didWin, gameState.players[myPlayer].name, gameState.players[gameState.winner].name, stats);
     clearSession();
+    if (didWin) UI.spawnConfetti();
+    if (!matchStatsRecorded) {
+      matchStatsRecorded = true;
+      Stats.recordMatchResult(gameState, gameState.players[myPlayer].name, didWin, vsComputer);
+    }
   }
 }
 
@@ -848,6 +977,29 @@ function onRollClick() {
   });
 }
 
+// A real pause: freezes our own roll/choice timers and the AI (for
+// vs-computer) instead of just showing a menu while the clock keeps
+// ticking underneath it. In a P2P match, the opponent is told so their
+// client can block interaction too — otherwise pausing would just make us
+// silently miss our own timer and auto-forfeit.
+function pauseGame() {
+  isPaused = true;
+  stopRollTimer();
+  stopChoiceTimer();
+  stopTitleFlash();
+  clearTimeout(computerActionTimer);
+  if (!vsComputer) send({ type: 'PAUSE' });
+  UI.showScreen('screen-pause');
+}
+
+function resumeGame() {
+  isPaused = false;
+  if (!vsComputer) send({ type: 'RESUME' });
+  UI.showScreen('screen-game');
+  renderGame();
+  if (vsComputer) maybeRunComputerTurn();
+}
+
 function quitGame() {
   const message = vsComputer
     ? 'Quit this match?'
@@ -866,19 +1018,23 @@ function renderIdentityChip() {
   el('menu-identity-avatar').textContent = name.charAt(0).toUpperCase();
 }
 
+function renderMenuStats() {
+  UI.renderMenuStats(Stats.getStats());
+}
+
 function bindMenu() {
   el('btn-host').addEventListener('click', hostGame);
   el('btn-join').addEventListener('click', () => UI.showScreen('screen-join-enter'));
   el('btn-vs-computer').addEventListener('click', startComputerGame);
-  el('btn-settings').addEventListener('click', UI.openSettingsModal);
-  el('btn-menu-identity').addEventListener('click', UI.openSettingsModal);
+  el('btn-settings').addEventListener('click', () => UI.openSettingsModal(false));
+  el('btn-menu-identity').addEventListener('click', () => UI.openSettingsModal(false));
   el('btn-howtoplay').addEventListener('click', UI.openHowToPlay);
   el('btn-howtoplay-close').addEventListener('click', UI.closeHowToPlay);
 
   el('btn-cancel-host').addEventListener('click', () => {
     resetNetwork();
     clearSession();
-    UI.showScreen('screen-menu');
+    UI.showScreen('screen-menu'); renderMenuStats();
   });
 
   const codeInput = el('join-code-input');
@@ -891,7 +1047,7 @@ function bindMenu() {
   el('btn-cancel-connecting').addEventListener('click', () => {
     resetNetwork();
     clearSession();
-    UI.showScreen('screen-menu');
+    UI.showScreen('screen-menu'); renderMenuStats();
   });
 
   el('btn-join-retry').addEventListener('click', () => UI.showScreen('screen-join-enter'));
@@ -900,9 +1056,9 @@ function bindMenu() {
 
 function bindGameScreen() {
   el('btn-roll').addEventListener('click', onRollClick);
-  el('btn-pause').addEventListener('click', () => UI.showScreen('screen-pause'));
-  el('btn-resume').addEventListener('click', () => UI.showScreen('screen-game'));
-  el('btn-pause-settings').addEventListener('click', UI.openSettingsModal);
+  el('btn-pause').addEventListener('click', pauseGame);
+  el('btn-resume').addEventListener('click', resumeGame);
+  el('btn-pause-settings').addEventListener('click', () => UI.openSettingsModal(true));
   el('btn-abandon').addEventListener('click', () => {
     UI.showConfirm('Leave this match?', abandonMatch);
   });
@@ -918,15 +1074,19 @@ function bindGameScreen() {
     stopGameTimer();
     stopRollTimer();
     stopChoiceTimer();
+    stopTitleFlash();
     UI.exitTrapPlacementMode();
     trapPlacementActive = false;
     opponentWasDisconnected = false;
     isRejoining = false;
+    isPaused = false;
+    remoteOpponentPaused = false;
+    UI.hideOpponentPausedOverlay();
     resetNetwork();
     gameState = null;
     vsComputer = false;
     clearSession();
-    UI.showScreen('screen-menu');
+    UI.showScreen('screen-menu'); renderMenuStats();
   });
 }
 
@@ -950,7 +1110,7 @@ function boot() {
   if (session) {
     attemptAutoRejoin();
   } else {
-    UI.showScreen('screen-menu');
+    UI.showScreen('screen-menu'); renderMenuStats();
   }
 }
 

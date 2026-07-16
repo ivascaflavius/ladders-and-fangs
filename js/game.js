@@ -31,8 +31,23 @@ export const Phase = Object.freeze({
   ROLLING: 'rolling',
   CHOOSE_TOKEN: 'choose-token',
   SHIELD_DECISION: 'shield-decision',
+  CARD_CHOICE: 'card-choice',
   GAME_OVER: 'game-over',
 });
+
+// A trailing player who lands on a card square gets to pick between two
+// drawn cards instead of one random one — a small comeback assist so
+// falling behind doesn't also mean worse cards. "Trailing" is a pure
+// function of the synced state (token progress), so both peers agree on
+// whether it applies without needing to send anything extra.
+const COMEBACK_THRESHOLD = 30;
+
+export function isTrailingPlayer(state, player) {
+  const opp = otherPlayer(player);
+  const myTotal = state.players[player].tokens[0] + state.players[player].tokens[1];
+  const oppTotal = state.players[opp].tokens[0] + state.players[opp].tokens[1];
+  return oppTotal - myTotal > COMEBACK_THRESHOLD;
+}
 
 function otherPlayer(player) {
   return player === 'host' ? 'guest' : 'host';
@@ -182,10 +197,14 @@ export function prepareChooseTokenEvent(state, player, tokenIndex, auto = false)
   // trap — same pattern as cardDraw above — so the reducer never calls
   // Math.random() itself and both peers stay in sync.
   const trapRoll = rollDie();
+  // A second independent draw, only ever used if the reducer determines
+  // (deterministically, from synced state) that this player is trailing and
+  // gets a choice — see isTrailingPlayer/finishMoveStep.
+  const cardDraw2 = computeCardDraw(state, player, dest);
   return {
     type: 'CHOOSE_TOKEN',
     player,
-    queue: [{ tokenIndex, roll, cardDraw, trapRoll }],
+    queue: [{ tokenIndex, roll, cardDraw, cardDraw2, trapRoll }],
     auto,
   };
 }
@@ -213,7 +232,7 @@ export function prepareDoubleMoveEvent(state, player, auto = false) {
     const otherIdx = lockedIdx === 0 ? 1 : 0;
     const dest = tokens[otherIdx] + roll * 2;
     const queue = dest <= BoardData.LAST_SQUARE
-      ? [{ tokenIndex: otherIdx, roll: roll * 2, cardDraw: computeCardDraw(state, player, dest), trapRoll: rollDie() }]
+      ? [{ tokenIndex: otherIdx, roll: roll * 2, cardDraw: computeCardDraw(state, player, dest), cardDraw2: computeCardDraw(state, player, dest), trapRoll: rollDie() }]
       : [];
     return { type: 'PLAY_DOUBLE_MOVE', player, queue, auto };
   }
@@ -221,7 +240,7 @@ export function prepareDoubleMoveEvent(state, player, auto = false) {
     .filter((i) => tokens[i] + roll <= BoardData.LAST_SQUARE)
     .map((tokenIndex) => {
       const dest = tokens[tokenIndex] + roll;
-      return { tokenIndex, roll, cardDraw: computeCardDraw(state, player, dest), trapRoll: rollDie() };
+      return { tokenIndex, roll, cardDraw: computeCardDraw(state, player, dest), cardDraw2: computeCardDraw(state, player, dest), trapRoll: rollDie() };
     });
   return { type: 'PLAY_DOUBLE_MOVE', player, queue, auto };
 }
@@ -236,6 +255,10 @@ export function prepareTrapEvent(state, player, square, auto = false) {
 
 export function prepareShieldDecisionEvent(state, player, useShield, auto = false) {
   return { type: 'SHIELD_DECISION', player, useShield, auto };
+}
+
+export function prepareCardChoiceEvent(state, player, chosenIndex, auto = false) {
+  return { type: 'CARD_CHOICE_DECISION', player, chosenIndex, auto };
 }
 
 export function prepareForfeitEvent(state, player) {
@@ -266,6 +289,8 @@ export function reduce(state, event) {
       return applyPlayTrap(state, event);
     case 'SHIELD_DECISION':
       return applyShieldDecision(state, event);
+    case 'CARD_CHOICE_DECISION':
+      return applyCardChoice(state, event);
     case 'FORFEIT_TURN':
       return applyForfeitTurn(state, event);
     case 'SYNC_STATE':
@@ -388,7 +413,7 @@ function resolveNextInQueue(state) {
     tokens[move.tokenIndex] = ladder.to;
     pushTrace(next, { kind: 'ladder', player, tokenIndex: move.tokenIndex, from: dest, to: ladder.to });
     pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} climbed a ladder ${dest} → ${ladder.to}!`);
-    return finishMoveStep(next, player, move.tokenIndex, rest, undefined, move.trapRoll);
+    return finishMoveStep(next, player, move.tokenIndex, rest, undefined, undefined, move.trapRoll);
   }
 
   const snake = BoardData.getSnake(dest);
@@ -408,15 +433,15 @@ function resolveNextInQueue(state) {
     tokens[move.tokenIndex] = snake.to;
     pushTrace(next, { kind: 'snake', player, tokenIndex: move.tokenIndex, from: dest, to: snake.to });
     pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} was bitten and slid ${dest} → ${snake.to}!`);
-    return finishMoveStep(next, player, move.tokenIndex, rest, undefined, move.trapRoll);
+    return finishMoveStep(next, player, move.tokenIndex, rest, undefined, undefined, move.trapRoll);
   }
 
   tokens[move.tokenIndex] = dest;
   pushLog(next, `${next.players[player].name}: Token ${move.tokenIndex + 1} moved ${from} → ${dest}.`);
-  return finishMoveStep(next, player, move.tokenIndex, rest, move.cardDraw, move.trapRoll);
+  return finishMoveStep(next, player, move.tokenIndex, rest, move.cardDraw, move.cardDraw2, move.trapRoll);
 }
 
-function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw, trapRoll) {
+function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw, cardDraw2, trapRoll) {
   let next = clone(state);
   const square = next.players[player].tokens[tokenIndex];
 
@@ -440,7 +465,21 @@ function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw, trapRoll
   // Card squares always get SOME acknowledgment, even with a full hand —
   // previously a full hand meant total silence, which looked broken.
   if (BoardData.isCardSquare(square)) {
-    if (cardDraw && next.players[player].cards.length < MAX_CARDS) {
+    const hasRoom = next.players[player].cards.length < MAX_CARDS;
+    // A trailing player who rolled two different candidate cards gets to
+    // pick — a small comeback assist. Pauses the queue like a shield
+    // decision does; the choice is applied by applyCardChoice below.
+    if (hasRoom && cardDraw && cardDraw2 && cardDraw !== cardDraw2 && isTrailingPlayer(next, player)) {
+      next.phase = Phase.CARD_CHOICE;
+      next.pending = {
+        player,
+        queue: restQueue,
+        cardChoice: { tokenIndex, options: [cardDraw, cardDraw2], at: square },
+      };
+      pushLog(next, `${next.players[player].name} is trailing — choose a card!`);
+      return next;
+    }
+    if (cardDraw && hasRoom) {
       next.players[player].cards.push(cardDraw);
       pushTrace(next, { kind: 'card', player, tokenIndex, cardType: cardDraw, at: square });
       pushLog(next, `${next.players[player].name} drew a ${CARD_LABELS[cardDraw]} card!`);
@@ -450,6 +489,10 @@ function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw, trapRoll
     }
   }
 
+  return finishAfterCardSquare(next, player, restQueue);
+}
+
+function finishAfterCardSquare(next, player, restQueue) {
   if (checkWin(next, player)) {
     next.winner = player;
     next.phase = Phase.GAME_OVER;
@@ -461,6 +504,29 @@ function finishMoveStep(state, player, tokenIndex, restQueue, cardDraw, trapRoll
 
   next.pending = { player, queue: restQueue };
   return resolveNextInQueue(next);
+}
+
+// Resolves the CARD_CHOICE pause set up in finishMoveStep: applies the
+// player's chosen card and continues the queue exactly where it left off.
+function applyCardChoice(state, event) {
+  let next = clone(state);
+  const pending = next.pending;
+  if (!pending || !pending.cardChoice) return next;
+  const { player } = pending;
+  const { tokenIndex, options, at } = pending.cardChoice;
+  const rest = pending.queue;
+
+  if (event.auto) pushLog(next, `${next.players[player].name} took too long to decide — a random choice was made.`);
+
+  const chosenIndex = event.chosenIndex === 0 || event.chosenIndex === 1 ? event.chosenIndex : 0;
+  const cardType = options[chosenIndex];
+  if (next.players[player].cards.length < MAX_CARDS) {
+    next.players[player].cards.push(cardType);
+    pushTrace(next, { kind: 'card', player, tokenIndex, cardType, at });
+    pushLog(next, `${next.players[player].name} chose a ${CARD_LABELS[cardType]} card!`);
+  }
+  next.phase = Phase.CHOOSE_TOKEN;
+  return finishAfterCardSquare(next, player, rest);
 }
 
 function applyShieldDecision(state, event) {
@@ -480,14 +546,14 @@ function applyShieldDecision(state, event) {
     pushTrace(next, { kind: 'shieldSave', player, tokenIndex, at: headSquare });
     pushLog(next, `${next.players[player].name} used a Shield — Token ${tokenIndex + 1} survived the fang!`);
     next.phase = Phase.CHOOSE_TOKEN;
-    return finishMoveStep(next, player, tokenIndex, rest, undefined, trapRoll);
+    return finishMoveStep(next, player, tokenIndex, rest, undefined, undefined, trapRoll);
   }
 
   next.players[player].tokens[tokenIndex] = tailSquare;
   pushTrace(next, { kind: 'snake', player, tokenIndex, from: headSquare, to: tailSquare });
   pushLog(next, `${next.players[player].name}: Token ${tokenIndex + 1} slid ${headSquare} → ${tailSquare}.`);
   next.phase = Phase.CHOOSE_TOKEN;
-  return finishMoveStep(next, player, tokenIndex, rest, undefined, trapRoll);
+  return finishMoveStep(next, player, tokenIndex, rest, undefined, undefined, trapRoll);
 }
 
 // Triggers `player`'s trap at `square` if `player` isn't its owner (a trap
@@ -568,7 +634,12 @@ function clone(state) {
     moveTrace: state.moveTrace,
     stats: { turns: state.stats.turns, cardsPlayed: { ...state.stats.cardsPlayed } },
     pending: state.pending
-      ? { ...state.pending, queue: state.pending.queue.map((m) => ({ ...m })), shieldChoice: state.pending.shieldChoice ? { ...state.pending.shieldChoice } : undefined }
+      ? {
+          ...state.pending,
+          queue: state.pending.queue.map((m) => ({ ...m })),
+          shieldChoice: state.pending.shieldChoice ? { ...state.pending.shieldChoice } : undefined,
+          cardChoice: state.pending.cardChoice ? { ...state.pending.cardChoice, options: [...state.pending.cardChoice.options] } : undefined,
+        }
       : null,
     traps: { ...(state.traps || {}) },
   };

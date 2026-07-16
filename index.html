@@ -45,6 +45,7 @@
           </span>
           <span class="identity-edit" data-icon="pencil"></span>
         </button>
+        <div id="menu-stats-panel" class="menu-stats-panel hidden"></div>
         <button id="btn-host" class="btn btn-primary btn-menu" type="button"><span class="btn-menu-icon" data-icon="dice"></span>Host a Game</button>
         <button id="btn-join" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="link"></span>Join a Game</button>
         <button id="btn-vs-computer" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="computer"></span>Play vs Computer</button>
@@ -183,6 +184,15 @@
         </div>
       </div>
 
+      <!-- comeback: trailing player chooses between two drawn cards -->
+      <div id="card-choice-overlay" class="overlay hidden">
+        <div class="overlay-panel">
+          <p><span data-icon="card"></span> You're trailing — choose a card!</p>
+          <div id="card-choice-buttons" class="overlay-actions"></div>
+          <div id="card-choice-timer" class="modal-timer hidden"></div>
+        </div>
+      </div>
+
       <!-- card draw reveal -->
       <div id="card-reveal" class="overlay hidden">
         <div class="card-reveal-scene">
@@ -215,6 +225,7 @@
 
     <!-- ===================== GAME OVER ===================== -->
     <section id="screen-game-over" class="screen">
+      <div id="confetti-layer" class="confetti-layer" aria-hidden="true"></div>
       <div class="panel">
         <h2 id="game-over-title">Game Over</h2>
         <div id="game-over-tokens" class="game-over-tokens"></div>
@@ -250,10 +261,23 @@
           <span class="settings-row-label"><span class="settings-icon" data-icon="speaker"></span>Sound</span>
           <input id="settings-sound" type="checkbox" />
         </label>
+        <label class="settings-row">
+          <span class="settings-row-label"><span class="settings-icon" data-icon="speaker"></span>Volume</span>
+          <input id="settings-volume" type="range" min="0" max="100" step="5" />
+        </label>
         <label class="settings-row toggle-row">
           <span class="settings-row-label"><span class="settings-icon" data-icon="vibrate"></span>Haptics</span>
           <input id="settings-haptics" type="checkbox" />
         </label>
+        <div id="settings-ai-difficulty-row" class="settings-row">
+          <span class="settings-row-label"><span class="settings-icon" data-icon="computer"></span>AI Difficulty</span>
+          <select id="settings-ai-difficulty">
+            <option value="easy">Easy</option>
+            <option value="normal">Normal</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <p class="settings-row-hint">Can't be changed mid-match.</p>
         <button id="btn-settings-close" class="btn btn-primary" type="button">Done</button>
       </div>
     </div>
@@ -264,6 +288,14 @@
         <p id="disconnect-message">Opponent disconnected — waiting to reconnect…</p>
         <div class="spinner" aria-hidden="true"></div>
         <button id="btn-abandon-disconnected" class="btn btn-danger" type="button">End Match</button>
+      </div>
+    </div>
+
+    <!-- ===================== OPPONENT PAUSED OVERLAY ===================== -->
+    <div id="opponent-paused-overlay" class="overlay hidden">
+      <div class="overlay-panel">
+        <p>Your opponent has paused the game.</p>
+        <button id="btn-opponent-paused-quit" class="btn btn-danger" type="button">Quit</button>
       </div>
     </div>
 
@@ -285,6 +317,7 @@
             <li><span class="inline-icon" data-icon="trap"></span> <strong>Trap</strong> — tap it on your turn <em>instead of</em> rolling, then tap an empty, ordinary square on the board to rig it. If your opponent's token lands there, a die is rolled and the token is knocked back that many squares ×5 (so 5-30 squares) — Shield won't save them, it only blocks snakes. Traps stay hidden: you'll see your own on the board, but never your opponent's, until one springs.</li>
           </ul>
           <p>A token that reaches square 100 is <strong class="hl-safe">locked in</strong> — it can't be captured or swapped away. First player to get <strong>both</strong> tokens to exactly square 100 wins!</p>
+          <p><strong>Falling behind?</strong> If you're trailing by more than 30 combined squares of token progress when you land on a card square, you draw two candidate cards and pick which one to keep instead of getting one at random.</p>
         </div>
         <button id="btn-howtoplay-close" class="btn btn-primary" type="button">Got it</button>
       </div>

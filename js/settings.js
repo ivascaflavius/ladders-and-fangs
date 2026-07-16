@@ -10,6 +10,8 @@ const DEFAULTS = {
   soundOn: true,
   hapticsOn: true,
   themeDark: true,
+  volume: 80,
+  aiDifficulty: 'normal', // 'easy' | 'normal' | 'hard'
 };
 
 function randomSuffix() {
@@ -84,6 +86,27 @@ function setDarkTheme(on) {
   persist();
 }
 
+function getVolume() {
+  const v = Number(state.volume);
+  return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 80;
+}
+
+function setVolume(v) {
+  const n = Number(v);
+  state.volume = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 80;
+  persist();
+}
+
+function getAiDifficulty() {
+  return state.aiDifficulty || 'normal';
+}
+
+function setAiDifficulty(level) {
+  if (!['easy', 'normal', 'hard'].includes(level)) return;
+  state.aiDifficulty = level;
+  persist();
+}
+
 function onChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -108,6 +131,10 @@ const Settings = {
   setHapticsOn,
   isDarkTheme,
   setDarkTheme,
+  getVolume,
+  setVolume,
+  getAiDifficulty,
+  setAiDifficulty,
   onChange,
   vibrate,
 };

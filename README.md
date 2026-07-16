@@ -24,6 +24,7 @@ A strategy twist on Snakes & Ladders, playable P2P with a friend — no server r
 
 - **Host a Game** generates a short room code — share it with your opponent.
 - **Join a Game** connects you to their code.
+- The **host's** board choice (see Board selection below) is the one used for the match — a joining guest's own pick is ignored.
 - No accounts, no server: connections are made peer-to-peer over WebRTC via [Trystero](https://github.com/dmotz/trystero).
 - When your opponent's connection drops mid-match, you'll see a reconnect toast the moment they (or you, after a refresh) come back — not just a disconnect notice.
 - **Rematch** on the game-over screen starts a fresh match without a trip back to the main menu. In a P2P match the host is authoritative for starting it (a guest's click just asks the host to).
@@ -42,6 +43,16 @@ A strategy twist on Snakes & Ladders, playable P2P with a friend — no server r
 - Settings has a **Dark Theme** toggle (on by default) for a light "parchment" look, if you'd rather have a paper-and-ink board than the default ink-purple night table.
 - A **Volume** slider scales every in-game sound (separate from the Sound on/off toggle, which mutes entirely).
 - If a match tab is backgrounded while it's your turn to roll, the browser tab's title flashes ("🎲 Your turn!") until you switch back or act — a lightweight nudge with no notification permission needed.
+
+### Board selection
+
+Settings (from the **main menu only** — it's hidden from the pause menu's settings, since a match already in progress can't switch boards) has a **Board** picker with three predefined layouts, each with the same shape (8 ladders, 8 snakes, 8 card squares, no square doing double duty) so none of them reads as harder or easier than another, just different:
+
+- **Classic** — the original layout.
+- **Crossfire**
+- **Switchback**
+
+This is your own preference for matches *you* start (vs-computer, or hosting) — see [Host or Join](#host-or-join) above for how it's resolved in a P2P match.
 
 ## Match stats
 
@@ -67,6 +78,8 @@ npm test
 
 This covers move legality edge cases (self-stack exemption at 100, Double Move overshoot), trap placement rules, the comeback card-choice flow, and — most importantly — a determinism fuzz test that replays several full-length randomized games through two independently-cloned copies of state and asserts they never diverge. That invariant (both P2P peers always reach byte-identical state from the same event stream) is what the entire multiplayer model depends on.
 
+`tests/board-data.test.js` covers the board registry itself: switching boards, the unknown-id fallback, and a fairness invariant check (8 ladders/8 snakes/8 card squares, no square doing double duty) run against every predefined board.
+
 ## Tech stack
 
 - Vanilla HTML/CSS/JavaScript (ES modules), no frameworks
@@ -76,7 +89,7 @@ This covers move legality edge cases (self-stack exemption at 100, Double Move o
 ### Module layout
 
 - `js/game.js` — pure rules engine (reducer, no DOM/network/Math.random inside `reduce()`)
-- `js/board-data.js` — static board layout (ladders, snakes, card squares)
+- `js/board-data.js` — the board layout registry (ladders, snakes, card squares) for all predefined boards; `setBoard(id)` swaps the active one in place
 - `js/ai.js` — heuristic single-player opponent
 - `js/main.js` — app bootstrap, network wiring, turn-by-turn glue between rules and rendering
 - `js/ui.js` — barrel module re-exporting the rendering submodules below, plus HUD rendering (header, leaderboard, card hand, log, toasts, menu stats)
@@ -93,7 +106,7 @@ This covers move legality edge cases (self-stack exemption at 100, Double Move o
 - If **both** players refresh or close their tab at the same time, the in-progress match state is lost (only the still-connected peer can re-sync a rejoining one).
 - Both players need to keep their tab open and connected for the match to continue; there's no way to resume a match later from a completely different device/session.
 - Direct P2P (WebRTC) connections may occasionally fail to establish, or drop mid-game, on very restrictive networks (e.g. some corporate firewalls, symmetric NATs, or certain cellular/carrier NATs) since this project uses no TURN relay server — only STUN, which can't always broker a connection through the strictest NATs. This has been observed more often on iOS Safari than other browsers. Multiple public STUN servers are configured to improve the odds, but there's no fallback relay if all else fails.
-- The board layout is fixed for v1 (not randomized) — a "Shuffled" mode with a seeded, host-shared random board is planned but not yet implemented (see `js/board-data.js`).
+- Boards are picked from a small predefined set, not randomly generated — a seeded "Shuffled" mode is a possible future addition (see `js/board-data.js`).
 
 ## License
 

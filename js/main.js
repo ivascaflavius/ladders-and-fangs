@@ -268,7 +268,10 @@ function handleIncoming(data) {
       }
     } else if (myPlayer === 'host') {
       // Host creates the authoritative initial state once the guest says hi.
-      gameState = Game.createInitialState(Settings.getPlayerName(), data.name);
+      // The host's own board choice wins regardless of the guest's — it
+      // rides along inside gameState.boardId in the SYNC_STATE sent below,
+      // so the guest's client renders the same board rather than its own.
+      gameState = Game.createInitialState(Settings.getPlayerName(), data.name, Settings.getBoardId());
       send({ type: 'HELLO', name: Settings.getPlayerName() });
       send({ type: 'SYNC_STATE', state: gameState });
       enterGameScreen();
@@ -401,7 +404,7 @@ function startComputerGame() {
   oppPlayer = 'guest';
   vsComputer = true;
   clearSession(); // single-player has no room to rejoin
-  gameState = Game.createInitialState(Settings.getPlayerName(), COMPUTER_NAME);
+  gameState = Game.createInitialState(Settings.getPlayerName(), COMPUTER_NAME, Settings.getBoardId());
   enterGameScreen();
 }
 
@@ -421,7 +424,10 @@ function startRematch() {
   }
   const hostName = gameState.players.host.name;
   const guestName = gameState.players.guest.name;
-  gameState = Game.createInitialState(hostName, guestName);
+  // Rematch repeats the same board the match was just played on, not
+  // whatever the host's Settings currently say (those can't change mid- or
+  // post-match anyway, but this keeps rematch unambiguous either way).
+  gameState = Game.createInitialState(hostName, guestName, gameState.boardId);
   send({ type: 'SYNC_STATE', state: gameState });
   if (networkRoom) saveSession(networkRoom.roomCode, 'host');
   enterGameScreen();
@@ -689,7 +695,20 @@ async function resolveChoiceTimeout(target) {
   }
 }
 
+// Rebuilds the board DOM only when the match's board actually differs from
+// whatever's currently rendered — cheap to call on every match-entry path
+// (fresh host/computer game, guest joining/reconnecting, rematch) without
+// tearing down and rebuilding the board on every rematch of the same one.
+let lastRenderedBoardId = null;
+function applyActiveBoard(boardId) {
+  if (boardId === lastRenderedBoardId) return;
+  BoardData.setBoard(boardId);
+  UI.initBoard();
+  lastRenderedBoardId = BoardData.getBoardId();
+}
+
 function enterGameScreen() {
+  applyActiveBoard(gameState.boardId);
   // Skip past any history already in the synced state so reconnecting/joining
   // doesn't replay every past event's sound/toast/move-animation at once.
   lastAnnouncedLogLen = gameState ? gameState.log.length : 0;

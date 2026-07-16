@@ -3,6 +3,8 @@
 // backed by localStorage. Other modules should only read/write settings
 // through this module rather than touching localStorage directly.
 
+import BoardData from './board-data.js';
+
 const STORAGE_KEY = 'laddersAndFangs.settings.v1';
 
 const DEFAULTS = {
@@ -12,6 +14,7 @@ const DEFAULTS = {
   themeDark: true,
   volume: 80,
   aiDifficulty: 'normal', // 'easy' | 'normal' | 'hard'
+  boardId: BoardData.DEFAULT_BOARD_ID,
 };
 
 function randomSuffix() {
@@ -107,6 +110,19 @@ function setAiDifficulty(level) {
   persist();
 }
 
+// This is only the player's own preferred board for matches THEY start
+// (vs-computer, or hosting) — a joined multiplayer match always uses
+// whatever board the host picked, regardless of this setting.
+function getBoardId() {
+  return BoardData.isValidBoardId(state.boardId) ? state.boardId : BoardData.DEFAULT_BOARD_ID;
+}
+
+function setBoardId(id) {
+  if (!BoardData.isValidBoardId(id)) return;
+  state.boardId = id;
+  persist();
+}
+
 function onChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -135,6 +151,8 @@ const Settings = {
   setVolume,
   getAiDifficulty,
   setAiDifficulty,
+  getBoardId,
+  setBoardId,
   onChange,
   vibrate,
 };

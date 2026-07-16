@@ -242,6 +242,21 @@ function playOneRandomStep(state) {
   return null;
 }
 
+describe('createInitialState boardId', () => {
+  test('defaults to whatever board is currently active in BoardData', () => {
+    const state = Game.createInitialState('Host', 'Guest');
+    assert.equal(state.boardId, BoardData.getBoardId());
+  });
+
+  test('takes an explicit boardId regardless of the currently active board', () => {
+    const state = Game.createInitialState('Host', 'Guest', 'switchback');
+    assert.equal(state.boardId, 'switchback');
+    // Passing an id doesn't itself switch BoardData's active layout — that's
+    // main.js's job (applyActiveBoard) once it renders the match.
+    assert.equal(BoardData.getBoardId(), 'classic');
+  });
+});
+
 describe('determinism fuzz', () => {
   test('two independent state clones stay identical across many random turns, across several games', () => {
     for (let game = 0; game < 8; game++) {

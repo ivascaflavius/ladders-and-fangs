@@ -608,18 +608,31 @@ export function closeLogModal() {
   hideOverlay('log-modal');
 }
 
-// ---------------------------------------------------------------- settings modal
-// disableDifficulty: true when opened mid-match (pause menu) — the AI
-// difficulty can't be changed once a game is already running.
-export function openSettingsModal(disableDifficulty) {
+function populateBoardSelect() {
+  const select = el('settings-board');
+  if (select.options.length > 0) return; // board list is static — populate once
+  BoardData.getBoardList().forEach(({ id, name }) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+}
+
+// inMatch: true when opened mid-match (pause menu) — board and AI difficulty
+// only ever apply to a match that hasn't started yet, so both rows are
+// hidden outright rather than shown-but-disabled.
+export function openSettingsModal(inMatch) {
   el('settings-name').value = Settings.getPlayerName();
   el('settings-sound').checked = Settings.isSoundOn();
   el('settings-volume').value = String(Settings.getVolume());
   el('settings-haptics').checked = Settings.isHapticsOn();
   el('settings-theme-dark').checked = Settings.isDarkTheme();
   el('settings-ai-difficulty').value = Settings.getAiDifficulty();
-  el('settings-ai-difficulty').disabled = !!disableDifficulty;
-  el('settings-ai-difficulty-row').classList.toggle('settings-row-disabled', !!disableDifficulty);
+  el('settings-ai-difficulty-row').classList.toggle('hidden', !!inMatch);
+  populateBoardSelect();
+  el('settings-board').value = Settings.getBoardId();
+  el('settings-board-row').classList.toggle('hidden', !!inMatch);
   el('settings-modal').classList.remove('hidden');
 }
 
@@ -637,4 +650,5 @@ export function bindSettingsInputs(applyTheme) {
     if (applyTheme) applyTheme();
   });
   el('settings-ai-difficulty').addEventListener('change', (e) => Settings.setAiDifficulty(e.target.value));
+  el('settings-board').addEventListener('change', (e) => Settings.setBoardId(e.target.value));
 }

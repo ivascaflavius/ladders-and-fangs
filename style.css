@@ -2100,24 +2100,8 @@ h2 {
   cursor: pointer;
 }
 
-.settings-row select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.settings-row.settings-row-disabled {
-  opacity: 0.5;
-}
-
-.settings-row.settings-row-disabled .settings-row-hint {
-  display: block;
-}
-
-.settings-row-hint {
+.settings-row.hidden {
   display: none;
-  font-size: 11px;
-  color: var(--text-dim);
-  margin: -4px 0 0;
 }
 
 @media (min-width: 700px) {

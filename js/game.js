@@ -71,8 +71,13 @@ function computeCardDraw(state, player, square) {
   return CARD_POOL[Math.floor(Math.random() * CARD_POOL.length)];
 }
 
-export function createInitialState(hostName, guestName) {
+// boardId defaults to whatever board is currently active in BoardData — the
+// host is the only one who ever passes an explicit choice (their own
+// Settings pick); a joining guest just inherits whatever arrives in the
+// host's SYNC_STATE.
+export function createInitialState(hostName, guestName, boardId) {
   return {
+    boardId: boardId || BoardData.getBoardId(),
     players: {
       host: { name: hostName, tokens: [0, 0], cards: [] },
       guest: { name: guestName, tokens: [0, 0], cards: [] },

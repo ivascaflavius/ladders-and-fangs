@@ -312,6 +312,13 @@ h1, h2, .btn {
   font-size: clamp(13px, 3vmin, 16px);
 }
 
+.menu-footnote {
+  margin: 2px 0 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  opacity: 0.75;
+}
+
 .identity-chip {
   display: flex;
   align-items: center;

@@ -14,6 +14,7 @@ const DEFAULTS = {
   longestSnakeSlide: 0,
   longestLadderClimb: 0,
   trapsSprungByMe: 0,
+  byBoard: {}, // { [boardId]: { gamesPlayed, wins } }
 };
 
 function load() {
@@ -78,8 +79,9 @@ export function matchHighlights(log) {
   return { longestSlide, longestClimb, trapsSprungTotal };
 }
 
-// Call once, right when a match ends. `gameState` is the final synced state;
-// `myName`/`didWin`/`vsComputer` describe the viewer's own outcome.
+// Call once, right when a match ends. `gameState` is the final synced state
+// (its own `boardId` says which board this was played on); `myName`/
+// `didWin`/`vsComputer` describe the viewer's own outcome.
 export function recordMatchResult(gameState, myName, didWin, vsComputer) {
   const state = load();
   state.gamesPlayed++;
@@ -93,6 +95,13 @@ export function recordMatchResult(gameState, myName, didWin, vsComputer) {
   state.longestSnakeSlide = Math.max(state.longestSnakeSlide, derived.longestSnakeSlide);
   state.longestLadderClimb = Math.max(state.longestLadderClimb, derived.longestLadderClimb);
   state.trapsSprungByMe += derived.trapsSprungByMe;
+
+  const boardId = gameState.boardId || 'classic';
+  const boardStats = state.byBoard[boardId] || { gamesPlayed: 0, wins: 0 };
+  boardStats.gamesPlayed++;
+  if (didWin) boardStats.wins++;
+  state.byBoard = { ...state.byBoard, [boardId]: boardStats };
+
   persist(state);
   return state;
 }

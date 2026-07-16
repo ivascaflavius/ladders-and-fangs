@@ -58,6 +58,8 @@ This is your own preference for matches *you* start (vs-computer, or hosting) �
 
 Your own local play history (games played, win rate, win rate vs the AI, longest single ladder climb/snake slide, and how many of your traps have sprung) is kept in `localStorage` and shown on the main menu once you've played at least one match. It's per-browser/device, not synced anywhere.
 
+A **by-board breakdown** (games played and win rate on each board you've actually played) shows up underneath — only boards you've tried appear, in the same order as the Board picker in Settings.
+
 ## Running locally
 
 This is a static site with ES modules, no build step, no bundler:
@@ -79,6 +81,8 @@ npm test
 This covers move legality edge cases (self-stack exemption at 100, Double Move overshoot), trap placement rules, the comeback card-choice flow, and — most importantly — a determinism fuzz test that replays several full-length randomized games through two independently-cloned copies of state and asserts they never diverge. That invariant (both P2P peers always reach byte-identical state from the same event stream) is what the entire multiplayer model depends on.
 
 `tests/board-data.test.js` covers the board registry itself: switching boards, the unknown-id fallback, and a fairness invariant check (8 ladders/8 snakes/8 card squares, no square doing double duty) run against every predefined board.
+
+`tests/stats.test.js` covers `stats.js`'s per-board breakdown (a tiny in-memory `localStorage` shim stands in, since `node:test` doesn't provide one) — games/wins tracked independently per board, the classic-board fallback when a match has no `boardId`, and backward compatibility with stats saved before this feature existed.
 
 ## Tech stack
 
@@ -106,7 +110,7 @@ This covers move legality edge cases (self-stack exemption at 100, Double Move o
 - If **both** players refresh or close their tab at the same time, the in-progress match state is lost (only the still-connected peer can re-sync a rejoining one).
 - Both players need to keep their tab open and connected for the match to continue; there's no way to resume a match later from a completely different device/session.
 - Direct P2P (WebRTC) connections may occasionally fail to establish, or drop mid-game, on very restrictive networks (e.g. some corporate firewalls, symmetric NATs, or certain cellular/carrier NATs) since this project uses no TURN relay server — only STUN, which can't always broker a connection through the strictest NATs. This has been observed more often on iOS Safari than other browsers. Multiple public STUN servers are configured to improve the odds, but there's no fallback relay if all else fails.
-- Boards are picked from a small predefined set, not randomly generated — a seeded "Shuffled" mode is a possible future addition (see `js/board-data.js`).
+- Boards are picked from a small predefined set (see `js/board-data.js`), not randomly generated.
 
 ## License
 

@@ -233,7 +233,24 @@ export function renderMenuStats(stats) {
   if (stats.longestLadderClimb > 0) rows.push([Icon.ladder, `Longest climb: ${stats.longestLadderClimb} squares`]);
   if (stats.trapsSprungByMe > 0) rows.push([Icon.trap, `${stats.trapsSprungByMe} of your traps sprung`]);
 
-  panel.innerHTML = rows
+  const rowsHtml = rows
     .map(([icon, text]) => `<div class="menu-stat-row"><span class="menu-stat-icon">${icon}</span><span>${escapeHtml(text)}</span></div>`)
     .join('');
+
+  // Per-board breakdown — only boards actually played show up, in the same
+  // order as the board picker in Settings, not by most-played or a-z.
+  const byBoard = stats.byBoard || {};
+  const boardRowsHtml = BoardData.getBoardList()
+    .filter(({ id }) => byBoard[id] && byBoard[id].gamesPlayed > 0)
+    .map(({ id, name }) => {
+      const { gamesPlayed, wins } = byBoard[id];
+      const winRatePct = Math.round((wins / gamesPlayed) * 100);
+      const text = `${name}: ${gamesPlayed} game${gamesPlayed === 1 ? '' : 's'} — ${winRatePct}% win rate`;
+      return `<div class="menu-stat-row"><span class="menu-stat-icon">${Icon.ladder}</span><span>${escapeHtml(text)}</span></div>`;
+    })
+    .join('');
+
+  panel.innerHTML = boardRowsHtml
+    ? `${rowsHtml}<div class="menu-stat-section-label">By board</div>${boardRowsHtml}`
+    : rowsHtml;
 }

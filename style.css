@@ -402,6 +402,15 @@ h1, h2, .btn {
   color: var(--text-dim);
 }
 
+.menu-stat-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  opacity: 0.8;
+  margin: 6px 0 0;
+}
+
 .menu-stat-icon {
   width: 1em;
   height: 1em;

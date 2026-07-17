@@ -8,6 +8,7 @@
 
 import BoardData from './board-data.js';
 import Settings from './settings.js';
+import Stats from './stats.js';
 import { Icon } from './icons.js';
 import { CARD_META } from './card-meta.js';
 
@@ -76,7 +77,18 @@ export function renderHeader(state, myPlayer, oppPlayer) {
   const turnEl = el('turn-indicator');
   const isMyTurn = state.turn === myPlayer;
   const turnName = state.players[state.turn].name;
-  turnEl.textContent = state.phase === 'game-over' ? 'Game Over' : isMyTurn ? 'Your turn' : `${turnName}'s turn`;
+  const isGameOver = state.phase === 'game-over';
+  // Waiting on the opponent (AI "thinking" delay or a remote human's turn)
+  // is otherwise a silent stretch of nothing happening — an animated
+  // ellipsis (the same one used on the host-waiting screen) makes clear the
+  // game hasn't stalled, not just whose turn it technically is.
+  if (isGameOver) {
+    turnEl.textContent = 'Game Over';
+  } else if (isMyTurn) {
+    turnEl.textContent = 'Your turn';
+  } else {
+    turnEl.innerHTML = `${escapeHtml(turnName)}'s turn<span class="inline-dots">...</span>`;
+  }
 
   const meChip = el('chip-me');
   const oppChip = el('chip-opp');
@@ -243,25 +255,46 @@ export function renderMenuStats(stats) {
   if (stats.longestSnakeSlide > 0) rows.push([Icon.snake, `Longest slide: ${stats.longestSnakeSlide} squares`]);
   if (stats.longestLadderClimb > 0) rows.push([Icon.ladder, `Longest climb: ${stats.longestLadderClimb} squares`]);
   if (stats.trapsSprungByMe > 0) rows.push([Icon.trap, `${stats.trapsSprungByMe} of your traps sprung`]);
+  if (stats.currentStreak >= 2) rows.push([Icon.fastForward, `Current win streak: ${stats.currentStreak}`]);
+  if (stats.bestStreak >= 2) rows.push([Icon.trophy, `Best win streak: ${stats.bestStreak}`]);
 
   const rowsHtml = rows
     .map(([icon, text]) => `<div class="menu-stat-row"><span class="menu-stat-icon">${icon}</span><span>${escapeHtml(text)}</span></div>`)
     .join('');
 
-  // Per-board breakdown — only boards actually played show up, in the same
-  // order as the board picker in Settings, not by most-played or a-z.
+  const unlocked = Stats.getUnlockedAchievements(stats);
+  const unlockedIds = new Set(unlocked.map((a) => a.id));
+  const achievementsHtml = `
+    <div class="menu-stat-section-label">Achievements (${unlocked.length}/${Stats.ACHIEVEMENTS.length})</div>
+    <div class="achievement-grid">
+      ${Stats.ACHIEVEMENTS.map((a) => {
+        const isUnlocked = unlockedIds.has(a.id);
+        return `<div class="achievement-badge${isUnlocked ? ' unlocked' : ''}">
+          <span class="achievement-badge-icon">${Icon[a.icon]}</span>
+          <span class="achievement-badge-label">${escapeHtml(a.label)}</span>
+          <span class="achievement-badge-desc">${escapeHtml(a.desc)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // Per-board breakdown — every board shows up (in the same order as the
+  // board picker in Settings), even ones never played, so the list reads as
+  // a complete roster rather than leaving the viewer wondering if a board
+  // they haven't tried yet is even tracked.
   const byBoard = stats.byBoard || {};
   const boardRowsHtml = BoardData.getBoardList()
-    .filter(({ id }) => byBoard[id] && byBoard[id].gamesPlayed > 0)
     .map(({ id, name }) => {
-      const { gamesPlayed, wins } = byBoard[id];
-      const winRatePct = Math.round((wins / gamesPlayed) * 100);
-      const text = `${name}: ${gamesPlayed} game${gamesPlayed === 1 ? '' : 's'} — ${winRatePct}% win rate`;
+      const boardStats = byBoard[id];
+      const text = boardStats && boardStats.gamesPlayed > 0
+        ? (() => {
+          const { gamesPlayed, wins } = boardStats;
+          const winRatePct = Math.round((wins / gamesPlayed) * 100);
+          return `${name}: ${gamesPlayed} game${gamesPlayed === 1 ? '' : 's'} — ${winRatePct}% win rate`;
+        })()
+        : `${name}: Not yet played`;
       return `<div class="menu-stat-row"><span class="menu-stat-icon">${Icon.ladder}</span><span>${escapeHtml(text)}</span></div>`;
     })
     .join('');
 
-  panel.innerHTML = boardRowsHtml
-    ? `${rowsHtml}<div class="menu-stat-section-label">By board</div>${boardRowsHtml}`
-    : rowsHtml;
+  panel.innerHTML = `${rowsHtml}<div class="menu-stat-section-label">By board</div>${boardRowsHtml}` + achievementsHtml;
 }

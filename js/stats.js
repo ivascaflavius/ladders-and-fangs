@@ -14,8 +14,30 @@ const DEFAULTS = {
   longestSnakeSlide: 0,
   longestLadderClimb: 0,
   trapsSprungByMe: 0,
+  currentStreak: 0,
+  bestStreak: 0,
   byBoard: {}, // { [boardId]: { gamesPlayed, wins } }
 };
+
+// Data-driven so the stats modal can just render whichever ones `check()`
+// currently passes, instead of needing separate "unlocked" bookkeeping
+// persisted (and migrated) across sessions — every achievement is derivable
+// straight from the cumulative stats already being tracked.
+export const ACHIEVEMENTS = [
+  { id: 'firstWin', icon: 'trophy', label: 'First Win', desc: 'Win your first match', check: (s) => s.wins >= 1 },
+  { id: 'fiveWins', icon: 'trophy', label: 'Veteran Winner', desc: 'Win 5 matches', check: (s) => s.wins >= 5 },
+  { id: 'streak3', icon: 'fastForward', label: 'On a Roll', desc: 'Win 3 matches in a row', check: (s) => s.bestStreak >= 3 },
+  { id: 'streak5', icon: 'fastForward', label: 'Unstoppable', desc: 'Win 5 matches in a row', check: (s) => s.bestStreak >= 5 },
+  { id: 'ladderMaster', icon: 'ladder', label: 'Ladder Master', desc: 'Climb 20+ squares on one ladder', check: (s) => s.longestLadderClimb >= 20 },
+  { id: 'snakeSurvivor', icon: 'snake', label: 'Snake Survivor', desc: 'Survive a 20+ square snake slide', check: (s) => s.longestSnakeSlide >= 20 },
+  { id: 'trapMaster', icon: 'trap', label: 'Trap Master', desc: 'Spring 5 of your traps on opponents', check: (s) => s.trapsSprungByMe >= 5 },
+  { id: 'aiSlayer', icon: 'computer', label: 'Machine Slayer', desc: 'Beat the computer 5 times', check: (s) => s.vsComputerWins >= 5 },
+  { id: 'marathoner', icon: 'hourglass', label: 'Marathoner', desc: 'Play 100 turns total', check: (s) => s.totalTurns >= 100 },
+];
+
+export function getUnlockedAchievements(stats) {
+  return ACHIEVEMENTS.filter((a) => a.check(stats));
+}
 
 function load() {
   try {
@@ -85,7 +107,13 @@ export function matchHighlights(log) {
 export function recordMatchResult(gameState, myName, didWin, vsComputer) {
   const state = load();
   state.gamesPlayed++;
-  if (didWin) state.wins++;
+  if (didWin) {
+    state.wins++;
+    state.currentStreak++;
+    state.bestStreak = Math.max(state.bestStreak, state.currentStreak);
+  } else {
+    state.currentStreak = 0;
+  }
   if (vsComputer) {
     state.vsComputerGamesPlayed++;
     if (didWin) state.vsComputerWins++;
@@ -110,4 +138,4 @@ export function getStats() {
   return load();
 }
 
-export default { recordMatchResult, getStats, matchHighlights };
+export default { recordMatchResult, getStats, matchHighlights, getUnlockedAchievements, ACHIEVEMENTS };

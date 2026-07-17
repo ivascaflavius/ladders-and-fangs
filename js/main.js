@@ -51,6 +51,11 @@ function updateTabTitleFlash() {
   else stopTitleFlash();
 }
 
+// Deliberately visibilitychange only, not window 'blur' — blur also fires
+// for in-tab focus changes (opening a <select>, devtools, clicking another
+// window's title bar) that don't mean the player actually left the game, and
+// auto-pausing on those was reported as too trigger-happy. visibilitychange
+// only fires when the tab itself is actually hidden/backgrounded.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) stopTitleFlash();
   else {
@@ -58,16 +63,6 @@ document.addEventListener('visibilitychange', () => {
     autoPauseIfInGame();
   }
 });
-
-// Switching to another app can leave the tab technically "visible" (not
-// occluded) even though it's lost OS focus, so visibilitychange alone
-// misses it on desktop — window blur catches that case. Mobile app-switches
-// are covered by visibilitychange above instead, since blur is unreliable
-// there. Defined up here (near the other visibility handling) even though
-// pauseGame()/isPaused/gameState live further down — safe since this only
-// runs later, as an event callback, by which point the whole module has
-// finished evaluating.
-window.addEventListener('blur', autoPauseIfInGame);
 
 function autoPauseIfInGame() {
   if (!gameState || gameState.phase === Game.Phase.GAME_OVER || isPaused) return;
@@ -464,6 +459,51 @@ async function hostGame() {
   wireNetworkEvents();
   saveSession(code, 'host');
   // Waiting for opponent's HELLO; handleIncoming() creates the game state.
+}
+
+// Builds a link that pre-fills the join code via ?join=CODE (see boot()'s
+// query-param check), so tapping a shared WhatsApp/etc. link drops the
+// recipient straight onto the join screen with the code already typed in.
+function buildInviteLink(code) {
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('join', code);
+  return url.toString();
+}
+
+// navigator.share() opens the OS share sheet (WhatsApp, Messages, etc.) on
+// mobile; desktop browsers mostly lack it, so we fall back to copying a
+// ready-to-paste invite message to the clipboard instead.
+async function shareRoomCode() {
+  if (!networkRoom) return;
+  const code = networkRoom.roomCode;
+  const url = buildInviteLink(code);
+  const text = `Join my Ladders & Fangs game! Room code: ${code}`;
+  const btn = el('btn-copy-code');
+  const label = el('btn-copy-code-label');
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Ladders & Fangs', text, url });
+      return;
+    }
+    throw new Error('no-share-api');
+  } catch (err) {
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      const original = label.textContent;
+      btn.classList.add('btn-copy-code-done');
+      label.textContent = 'Copied!';
+      setTimeout(() => {
+        btn.classList.remove('btn-copy-code-done');
+        label.textContent = original;
+      }, 1600);
+    } catch (clipboardErr) {
+      // Share sheet dismissed by the user, or clipboard access blocked —
+      // either way there's nothing useful left to do but leave the code
+      // visible on screen for a manual copy.
+    }
+  }
 }
 
 async function joinGame(rawCode) {
@@ -1091,6 +1131,7 @@ function bindMenu() {
     clearSession();
     UI.showScreen('screen-menu'); renderMenuStats();
   });
+  el('btn-copy-code').addEventListener('click', shareRoomCode);
 
   const codeInput = el('join-code-input');
   codeInput.addEventListener('input', () => {
@@ -1160,6 +1201,19 @@ function boot() {
   bindGameScreen();
   bindSettingsModal();
   renderIdentityChip();
+
+  // A shared invite link (?join=CODE) takes priority over resuming an old
+  // session — someone tapping a fresh invite clearly wants to join *that*
+  // game, not silently reconnect to whatever they were doing last time.
+  const params = new URLSearchParams(location.search);
+  const joinCode = params.get('join');
+  if (joinCode) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    UI.showScreen('screen-join-enter');
+    const codeInput = el('join-code-input');
+    codeInput.value = normalizeRoomCode(joinCode).slice(0, 5);
+    return;
+  }
 
   const session = loadSession();
   if (session) {

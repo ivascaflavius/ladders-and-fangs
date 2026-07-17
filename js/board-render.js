@@ -384,6 +384,34 @@ export function renderTraps(state, myPlayer) {
   }
 }
 
+// A short burst of little sparks radiating from a square, layered on top of
+// the existing flash/shake for the "big" moments (captures, ladders, snake
+// bites) so they read as more of an event than a plain color flash. Pure
+// CSS-transform animation on throwaway divs — cheap enough to fire on every
+// impact without worrying about mobile perf.
+function spawnParticles(square, colorVar, count = 10) {
+  if (!tokensLayerEl) return;
+  const { x, y } = squareCenterPercent(square);
+  const burst = document.createElement('div');
+  burst.className = 'particle-burst';
+  burst.style.left = `${x}%`;
+  burst.style.top = `${y}%`;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('span');
+    p.className = 'particle';
+    const angle = (i / count) * 360 + (Math.random() * 24 - 12);
+    const dist = 26 + Math.random() * 18;
+    const rad = (angle * Math.PI) / 180;
+    p.style.setProperty('--dx', `${Math.cos(rad) * dist}px`);
+    p.style.setProperty('--dy', `${Math.sin(rad) * dist}px`);
+    p.style.setProperty('--particle-color', `var(${colorVar})`);
+    p.style.animationDelay = `${Math.random() * 40}ms`;
+    burst.appendChild(p);
+  }
+  tokensLayerEl.appendChild(burst);
+  setTimeout(() => burst.remove(), 700);
+}
+
 function flashBoard() {
   if (!boardEl) return;
   boardEl.classList.remove('shake');
@@ -487,6 +515,7 @@ async function animateTraceEntry(entry, touched) {
     lastSquareByToken[key] = entry.to;
     tokenEl.classList.remove('sliding');
     flashSquare(entry.to);
+    spawnParticles(entry.to, '--snake-color');
     return;
   }
 
@@ -500,6 +529,7 @@ async function animateTraceEntry(entry, touched) {
     await sleep(560);
     tokenEl.classList.remove('sliding');
     flashSquare(entry.to);
+    spawnParticles(entry.to, '--ladder-color');
     return;
   }
 
@@ -545,6 +575,7 @@ async function animateTraceEntry(entry, touched) {
       playSound('capture');
       haptic('capture');
       flashBoard();
+      spawnParticles(entry.at != null ? entry.at : lastSquareByToken[capturedKey], '--danger', 14);
       await sleep(500);
       capturedEl.classList.remove('captured-flash');
       setTokenSquare(capturedEl, 0);

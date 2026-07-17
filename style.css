@@ -533,18 +533,75 @@ h1, h2, .btn {
   flex-shrink: 0;
 }
 
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.achievement-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  opacity: 0.45;
+  filter: grayscale(1);
+  transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+}
+
+.achievement-badge.unlocked {
+  opacity: 1;
+  filter: none;
+  color: var(--text);
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 10px rgba(212, 176, 120, 0.18);
+}
+
+.achievement-badge-icon {
+  width: 1.6em;
+  height: 1.6em;
+  color: var(--gold);
+}
+
+.achievement-badge-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.achievement-badge-desc {
+  font-size: 9.5px;
+  text-align: center;
+  line-height: 1.25;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+.achievement-badge.unlocked .achievement-badge-desc {
+  opacity: 0.7;
+}
+
 /* The Stats modal shows the same rows as the (removed) main-menu panel, but
    as the modal's whole reason for existing rather than a side note, so it
    gets a bigger, roomier treatment: wider panel, bigger text/icons, more
    breathing room between rows. */
 .overlay-panel.stats-panel {
-  width: min(440px, 100%);
+  width: min(600px, 96vw);
+  max-height: 85dvh;
 }
 
 .stats-panel .menu-stats-panel {
   max-width: none;
   gap: 14px;
   padding: 20px 18px;
+  overflow-y: auto;
 }
 
 .stats-panel .menu-stat-row {
@@ -721,7 +778,19 @@ h2 {
   color: var(--gold);
 }
 
-.waiting-dots .dots {
+.btn-copy-code {
+  margin: 4px 0 2px;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-copy-code.btn-copy-code-done {
+  background: rgba(103, 196, 138, 0.18);
+  border-color: var(--host-color);
+  color: var(--host-color);
+}
+
+.waiting-dots .dots,
+.inline-dots {
   display: inline-block;
   width: 1.5em;
   text-align: left;
@@ -1367,6 +1436,32 @@ h2 {
 
 .token.captured-flash {
   animation: capture-pop 0.5s ease;
+}
+
+.particle-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 50%;
+  background: var(--particle-color, var(--gold));
+  box-shadow: 0 0 4px 1px var(--particle-color, var(--gold));
+  animation: particle-fly 0.55s ease-out forwards;
+}
+
+@keyframes particle-fly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
 }
 
 @keyframes pulse {
@@ -2378,6 +2473,10 @@ h2 {
   .confetti-piece,
   .mbp-token {
     animation: none !important;
+  }
+
+  .particle-burst {
+    display: none;
   }
 
   .mbp-token-host {

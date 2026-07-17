@@ -95,6 +95,11 @@ export const Icon = {
   // Caltrop/spike-mine glyph for the Trap card and its on-board markers.
   trap: svg(`<path d="M12 3v18M3 12h18M6.5 6.5l11 11M17.5 6.5l-11 11" ${T}/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>`),
 
+  copy: svg(`<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" ${S}/><path d="M15.5 8.5V6.5a2 2 0 00-2-2H6a2 2 0 00-2 2v7.5a2 2 0 002 2h2" ${S}/>`),
+
+  // Comma-shaped speech/share-out arrow for the invite-code share button.
+  share: svg(`<circle cx="18" cy="5.5" r="2.6" ${S}/><circle cx="6" cy="12" r="2.6" ${S}/><circle cx="18" cy="18.5" r="2.6" ${S}/><path d="M8.3 10.7l7.4-3.7M8.3 13.3l7.4 3.7" ${S}/>`),
+
   moon: svg(`<path d="M20 14.2A8.3 8.3 0 1110.3 4a6.7 6.7 0 009.7 10.2z" fill="currentColor" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>`),
 
   // References the shared <linearGradient id="shieldGrad"> defined once in

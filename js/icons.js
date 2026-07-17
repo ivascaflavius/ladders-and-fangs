@@ -41,6 +41,16 @@ export const Icon = {
 
   help: svg(`<circle cx="12" cy="12" r="9" ${S}/><path d="M9.7 9.7a2.3 2.3 0 113.9 1.7c-.9.7-1.6 1.2-1.6 2.3" ${S}/><circle cx="12" cy="16.8" r="1.1" fill="currentColor" stroke="none"/>`),
 
+  info: svg(`<circle cx="12" cy="12" r="9" ${S}/><path d="M12 11v6" ${S}/><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/>`),
+
+  // Classic Octocat mark, filled (not stroked) since it's a solid logo, not
+  // a line icon like the rest of the set — used only for the About modal's
+  // GitHub link, so the one-off style break stays contained there.
+  github:
+    '<svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02.8-.22 1.65-.33 2.5-.33.85 0 1.7.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.16.58.67.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/>' +
+    '</svg>',
+
   // A proper toothed cogwheel (not just radiating spokes) so it reads as
   // "settings" at a glance instead of looking like a sun/asterisk.
   gear: svg(`<circle cx="12" cy="12" r="3" ${S}/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82A1.65 1.65 0 003.09 14H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" ${S}/>`),

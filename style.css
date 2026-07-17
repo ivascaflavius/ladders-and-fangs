@@ -426,11 +426,16 @@ h1, h2, .btn {
   font-size: clamp(13px, 3vmin, 16px);
 }
 
-.menu-footnote {
-  margin: 2px 0 0;
+.settings-hint {
+  margin: -4px 0 0;
   color: var(--text-dim);
   font-size: 11px;
   opacity: 0.75;
+  text-align: left;
+}
+
+.settings-hint.hidden {
+  display: none;
 }
 
 .identity-chip {
@@ -593,14 +598,21 @@ h1, h2, .btn {
    gets a bigger, roomier treatment: wider panel, bigger text/icons, more
    breathing room between rows. */
 .overlay-panel.stats-panel {
-  width: min(600px, 96vw);
+  width: min(480px, 100%);
   max-height: 85dvh;
 }
 
 .stats-panel .menu-stats-panel {
+  /* Sits directly in the modal's flow, same as the Settings/How to Play
+     rows — no separate boxed sub-panel like the (removed) main-menu version
+     needed, since the whole modal already reads as one contained panel. */
   max-width: none;
   gap: 14px;
-  padding: 20px 18px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
   overflow-y: auto;
 }
 
@@ -661,6 +673,12 @@ h2 {
   flex-shrink: 0;
   width: 30px;
   text-align: center;
+}
+
+.menu-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
 .menu-row-3 {
@@ -2258,6 +2276,24 @@ h2 {
 
 .game-over-stat-icon {
   margin-right: 8px;
+}
+
+/* ===================== ABOUT ===================== */
+
+.about-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  text-align: left;
+  margin: 0;
+}
+
+.about-github-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
 }
 
 /* ===================== HOW TO PLAY ===================== */

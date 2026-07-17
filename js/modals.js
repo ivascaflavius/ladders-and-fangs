@@ -597,6 +597,15 @@ export function closeHowToPlay() {
   hideOverlay('howtoplay-modal');
 }
 
+// ---------------------------------------------------------------- about
+export function openAboutModal() {
+  el('about-modal').classList.remove('hidden');
+}
+
+export function closeAboutModal() {
+  hideOverlay('about-modal');
+}
+
 // ---------------------------------------------------------------- event log modal
 export function openLogModal() {
   el('log-modal').classList.remove('hidden');
@@ -633,6 +642,7 @@ export function openSettingsModal(inMatch) {
   populateBoardSelect();
   el('settings-board').value = Settings.getBoardId();
   el('settings-board-row').classList.toggle('hidden', !!inMatch);
+  el('settings-board-hint').classList.toggle('hidden', !!inMatch);
   el('settings-modal').classList.remove('hidden');
 }
 

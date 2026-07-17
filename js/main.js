@@ -1121,10 +1121,14 @@ function bindMenu() {
   el('btn-vs-computer').addEventListener('click', startComputerGame);
   el('btn-stats').addEventListener('click', () => { renderMenuStats(); UI.openStatsModal(); });
   el('btn-stats-close').addEventListener('click', UI.closeStatsModal);
-  el('btn-settings').addEventListener('click', () => UI.openSettingsModal(false));
+  // Settings no longer has its own bottom-row button — the identity chip
+  // (name + gear icon) is the single entry point, since it already opened
+  // Settings and a separate button was a redundant second way in.
   el('btn-menu-identity').addEventListener('click', () => UI.openSettingsModal(false));
   el('btn-howtoplay').addEventListener('click', UI.openHowToPlay);
   el('btn-howtoplay-close').addEventListener('click', UI.closeHowToPlay);
+  el('btn-about').addEventListener('click', UI.openAboutModal);
+  el('btn-about-close').addEventListener('click', UI.closeAboutModal);
 
   el('btn-cancel-host').addEventListener('click', () => {
     resetNetwork();

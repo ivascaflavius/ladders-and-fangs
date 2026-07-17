@@ -76,23 +76,24 @@
           </div>
         </div>
         <p class="subtitle">A strategy twist on Snakes &amp; Ladders</p>
-        <button id="btn-menu-identity" class="identity-chip" type="button" aria-label="Change player name">
+        <button id="btn-menu-identity" class="identity-chip" type="button" aria-label="Open settings">
           <span class="identity-avatar" id="menu-identity-avatar">P</span>
           <span class="identity-text">
             <span class="identity-label">Playing as</span>
             <span class="identity-name" id="menu-identity-name">Player</span>
           </span>
-          <span class="identity-edit" data-icon="pencil"></span>
+          <span class="identity-edit" data-icon="gear"></span>
         </button>
         <button id="btn-host" class="btn btn-primary btn-menu" type="button"><span class="btn-menu-icon" data-icon="dice"></span>Host a Game</button>
-        <button id="btn-join" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="link"></span>Join a Game</button>
-        <button id="btn-vs-computer" class="btn btn-secondary btn-menu" type="button"><span class="btn-menu-icon" data-icon="computer"></span>Play vs Computer</button>
+        <div class="menu-row-2">
+          <button id="btn-join" class="btn btn-secondary btn-menu-compact" type="button"><span class="btn-menu-icon" data-icon="link"></span>Join a Game</button>
+          <button id="btn-vs-computer" class="btn btn-secondary btn-menu-compact" type="button"><span class="btn-menu-icon" data-icon="computer"></span>Play vs Computer</button>
+        </div>
         <div class="menu-row-3">
           <button id="btn-stats" class="btn btn-ghost btn-menu-compact" type="button"><span class="btn-menu-icon" data-icon="trophy"></span>Stats</button>
           <button id="btn-howtoplay" class="btn btn-ghost btn-menu-compact" type="button"><span class="btn-menu-icon" data-icon="help"></span>How to Play</button>
-          <button id="btn-settings" class="btn btn-ghost btn-menu-compact" type="button"><span class="btn-menu-icon" data-icon="gear"></span>Settings</button>
+          <button id="btn-about" class="btn btn-ghost btn-menu-compact" type="button"><span class="btn-menu-icon" data-icon="info"></span>About</button>
         </div>
-        <p class="menu-footnote">Board layout can be changed in Settings.</p>
       </div>
     </section>
 
@@ -318,6 +319,7 @@
           <span class="settings-row-label"><span class="settings-icon" data-icon="ladder"></span>Board</span>
           <select id="settings-board"></select>
         </div>
+        <p id="settings-board-hint" class="settings-hint">Changes the ladder/snake layout used for your next match.</p>
         <div id="settings-ai-difficulty-row" class="settings-row">
           <span class="settings-row-label"><span class="settings-icon" data-icon="computer"></span>AI Difficulty</span>
           <select id="settings-ai-difficulty">
@@ -379,6 +381,23 @@
           <div class="htp-row"><span class="inline-icon" data-icon="refresh"></span><span><strong>Trailing by 30+ squares?</strong> Card squares draw you two candidates to choose from instead of one at random.</span></div>
         </div>
         <button id="btn-howtoplay-close" class="btn btn-primary" type="button">Got it</button>
+      </div>
+    </div>
+
+    <!-- ===================== ABOUT (modal, overlays any screen) ===================== -->
+    <div id="about-modal" class="overlay hidden">
+      <div class="overlay-panel about-panel">
+        <h2><span data-icon="info"></span> About</h2>
+        <p class="about-text">
+          Ladders &amp; Fangs is a strategy twist on Snakes &amp; Ladders — real-time
+          peer-to-peer multiplayer, right in the browser. No accounts, no ads,
+          no server backend beyond connecting two players. Built as a solo
+          passion project.
+        </p>
+        <a class="btn btn-secondary about-github-link" href="https://github.com/ivascaflavius" target="_blank" rel="noopener noreferrer">
+          <span data-icon="github"></span>github.com/ivascaflavius
+        </a>
+        <button id="btn-about-close" class="btn btn-primary" type="button">Close</button>
       </div>
     </div>
 

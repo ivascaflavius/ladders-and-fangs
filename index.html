@@ -11,6 +11,22 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Global SVG defs, referenced by icons.js's shield icon via fill="url(#shieldGrad)".
+       Defined exactly once here (rather than embedded in the icon's own markup)
+       so it survives every re-render — the icon is stamped into the DOM in many
+       places at once (header chips, card hand, card reveal, ...), and if each
+       copy carried its own <defs id="shieldGrad">, duplicate IDs would make the
+       fill randomly fail to resolve whenever one of those copies got wiped by a
+       container's innerHTML reset, leaving just the stroke outline behind. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#f1f3f7"/>
+        <stop offset="45%" stop-color="#b7bcc9"/>
+        <stop offset="100%" stop-color="#7d828f"/>
+      </linearGradient>
+    </defs>
+  </svg>
   <div id="app-root">
 
     <!-- ===================== MAIN MENU ===================== -->

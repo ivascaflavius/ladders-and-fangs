@@ -53,8 +53,26 @@ function updateTabTitleFlash() {
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) stopTitleFlash();
-  else updateTabTitleFlash();
+  else {
+    updateTabTitleFlash();
+    autoPauseIfInGame();
+  }
 });
+
+// Switching to another app can leave the tab technically "visible" (not
+// occluded) even though it's lost OS focus, so visibilitychange alone
+// misses it on desktop — window blur catches that case. Mobile app-switches
+// are covered by visibilitychange above instead, since blur is unreliable
+// there. Defined up here (near the other visibility handling) even though
+// pauseGame()/isPaused/gameState live further down — safe since this only
+// runs later, as an event callback, by which point the whole module has
+// finished evaluating.
+window.addEventListener('blur', autoPauseIfInGame);
+
+function autoPauseIfInGame() {
+  if (!gameState || gameState.phase === Game.Phase.GAME_OVER || isPaused) return;
+  pauseGame();
+}
 
 let networkRoom = null;
 let gameState = null;

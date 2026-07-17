@@ -97,11 +97,10 @@ export const Icon = {
 
   moon: svg(`<path d="M20 14.2A8.3 8.3 0 1110.3 4a6.7 6.7 0 009.7 10.2z" fill="currentColor" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>`),
 
+  // References the shared <linearGradient id="shieldGrad"> defined once in
+  // index.html — see the comment there for why it isn't defined inline here.
   shield:
     '<svg class="icon-svg shield-icon" viewBox="0 0 24 24" aria-hidden="true">' +
-    '<defs><linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">' +
-    '<stop offset="0%" stop-color="#f1f3f7"/><stop offset="45%" stop-color="#b7bcc9"/>' +
-    '<stop offset="100%" stop-color="#7d828f"/></linearGradient></defs>' +
     '<path fill="url(#shieldGrad)" stroke="#5a5e69" stroke-width="0.6" ' +
     'd="M12 2.2l7.5 3v5.6c0 5.3-3.3 9.2-7.5 10.9-4.2-1.7-7.5-5.6-7.5-10.9V5.2l7.5-3z"/>' +
     '</svg>',

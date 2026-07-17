@@ -57,8 +57,10 @@ function updateTabTitleFlash() {
 // auto-pausing on those was reported as too trigger-happy. visibilitychange
 // only fires when the tab itself is actually hidden/backgrounded.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) stopTitleFlash();
-  else {
+  if (!document.hidden) {
+    stopTitleFlash();
+    recoverHostWaitingIfNeeded();
+  } else {
     updateTabTitleFlash();
     autoPauseIfInGame();
   }
@@ -459,6 +461,43 @@ async function hostGame() {
   wireNetworkEvents();
   saveSession(code, 'host');
   // Waiting for opponent's HELLO; handleIncoming() creates the game state.
+}
+
+// Tapping "Share Invite" opens the OS share sheet (see shareRoomCode()),
+// which backgrounds the tab the instant the player picks WhatsApp/etc. —
+// and on Android in particular, the underlying WebRTC/tracker signaling
+// connection can silently die while backgrounded, leaving the host's room
+// unjoinable even after they switch back (reported: opponent can't connect
+// no matter how long the host waits, but everything works if the code is
+// read out loud instead of shared, i.e. without ever backgrounding the tab).
+// Re-joining the same room code on return refreshes the connection instead
+// of leaving the host stuck on a dead one — the code shown on screen
+// doesn't change, so nothing needs to be re-shared.
+let recoveringHostRoom = false;
+async function recoverHostWaitingIfNeeded() {
+  if (recoveringHostRoom || myPlayer !== 'host' || gameState || !networkRoom) return;
+  if (!el('screen-host-waiting').classList.contains('active')) return;
+  recoveringHostRoom = true;
+  try {
+    const code = networkRoom.roomCode;
+    resetNetwork();
+    const freshRoom = await joinNetworkRoom(code);
+    // The player may have cancelled, or a peer may have connected through
+    // some other path, while this was in flight — don't resurrect a room
+    // they've since left.
+    if (myPlayer !== 'host' || gameState || !el('screen-host-waiting').classList.contains('active')) {
+      try {
+        freshRoom.leave();
+      } catch (err) {
+        /* ignore teardown errors */
+      }
+      return;
+    }
+    networkRoom = freshRoom;
+    wireNetworkEvents();
+  } finally {
+    recoveringHostRoom = false;
+  }
 }
 
 // Builds a link that pre-fills the join code via ?join=CODE (see boot()'s

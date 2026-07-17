@@ -419,6 +419,32 @@ h1, h2, .btn {
   flex-shrink: 0;
 }
 
+/* The Stats modal shows the same rows as the (removed) main-menu panel, but
+   as the modal's whole reason for existing rather than a side note, so it
+   gets a bigger, roomier treatment: wider panel, bigger text/icons, more
+   breathing room between rows. */
+.overlay-panel.stats-panel {
+  width: min(440px, 100%);
+}
+
+.stats-panel .menu-stats-panel {
+  max-width: none;
+  gap: 14px;
+  padding: 20px 18px;
+}
+
+.stats-panel .menu-stat-row {
+  font-size: 16px;
+  gap: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stats-panel .menu-stat-icon {
+  width: 1.3em;
+  height: 1.3em;
+}
+
 h2 {
   margin: 0 0 4px;
   font-size: clamp(20px, 5vmin, 26px);
@@ -1546,6 +1572,17 @@ h2 {
   padding-top: 4px;
 }
 
+/* Turn headers are colored to match the player whose turn it is (same
+   host/guest mapping as the player chips and board tokens), so the log is
+   scannable at a glance instead of needing to read the name each time. */
+.log-entry-turn-host {
+  color: var(--host-color) !important;
+}
+
+.log-entry-turn-guest {
+  color: var(--guest-color) !important;
+}
+
 .log-entry-lock {
   display: flex;
   align-items: center;
@@ -2024,6 +2061,37 @@ h2 {
 
 .howtoplay-body li {
   margin-bottom: 6px;
+}
+
+.htp-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.htp-row .inline-icon {
+  flex-shrink: 0;
+  margin-top: 0.15em;
+  color: var(--accent);
+}
+
+.htp-subhead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-border);
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.htp-hint {
+  margin: 0 0 8px;
 }
 
 .hl-safe {

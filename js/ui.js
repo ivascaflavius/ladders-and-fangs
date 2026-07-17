@@ -177,9 +177,20 @@ export function renderLog(state) {
   logEl.innerHTML = '';
   // Full history is retained (game.js no longer caps it) so the panel scrolls
   // through everything since the start of the match.
+  const hostName = state.players.host.name;
+  const guestName = state.players.guest.name;
   state.log.forEach((entry) => {
     const div = document.createElement('div');
-    div.className = entry.text.startsWith('Turn ') ? 'log-entry log-entry-turn' : 'log-entry';
+    const isTurn = entry.text.startsWith('Turn ');
+    let className = isTurn ? 'log-entry log-entry-turn' : 'log-entry';
+    // Turn headers ("Turn 4 — Flavius") name the player whose turn is
+    // starting; color them by host/guest role (same mapping as the player
+    // chips) so the log is scannable without reading every name.
+    if (isTurn) {
+      if (entry.text.endsWith(`— ${hostName}`)) className += ' log-entry-turn-host';
+      else if (entry.text.endsWith(`— ${guestName}`)) className += ' log-entry-turn-guest';
+    }
+    div.className = className;
     // A move that lands a token on the finish square (100) is worth calling
     // out with a lock glyph, since that token is now locked in for good.
     if (/→ 100\b/.test(entry.text)) {

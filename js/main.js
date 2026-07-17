@@ -825,7 +825,18 @@ function renderGame() {
       );
     } else {
       UI.closeDiceModal();
-      if (legal.length === 1) onTokenTap(myPlayer, legal[0]);
+      if (legal.length === 1) {
+        // onTokenTap mutates the shared `gameState` synchronously (applying
+        // the move, possibly all the way to GAME_OVER) and schedules its own
+        // animated re-render via processStateChange. Bail out of *this*
+        // renderGame() call right away instead of falling through to the
+        // code below (shield/card-choice/game-over checks) — that code would
+        // otherwise run against the already-mutated post-move state before
+        // the move's animation has had a chance to play, e.g. popping the
+        // victory modal instantly instead of after the token visibly lands.
+        onTokenTap(myPlayer, legal[0]);
+        return;
+      }
     }
   } else if (!rollInProgress) {
     UI.closeDiceModal();

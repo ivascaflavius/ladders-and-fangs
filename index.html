@@ -251,7 +251,7 @@
     <!-- ===================== SETTINGS (modal, overlays any screen) ===================== -->
     <div id="settings-modal" class="overlay hidden">
       <div class="overlay-panel settings-panel">
-        <h2>Settings</h2>
+        <h2><span data-icon="gear"></span> Settings</h2>
         <label class="settings-row">
           <span class="settings-row-label"><span class="settings-icon" data-icon="user"></span>Player Name</span>
           <input id="settings-name" type="text" maxlength="16" placeholder="Player" />
@@ -307,7 +307,7 @@
 
     <!-- ===================== STATS (modal, overlays any screen) ===================== -->
     <div id="stats-modal" class="overlay hidden">
-      <div class="overlay-panel">
+      <div class="overlay-panel stats-panel">
         <h2><span data-icon="trophy"></span> Your Stats</h2>
         <div id="stats-modal-body" class="menu-stats-panel"></div>
         <button id="btn-stats-close" class="btn btn-primary" type="button">Close</button>
@@ -317,22 +317,24 @@
     <!-- ===================== HOW TO PLAY (modal, overlays any screen) ===================== -->
     <div id="howtoplay-modal" class="overlay hidden">
       <div class="overlay-panel howtoplay-panel">
-        <h2>How to Play</h2>
+        <h2><span data-icon="help"></span> How to Play</h2>
         <div class="howtoplay-body">
-          <p>No one to play with? Pick <strong>Play vs Computer</strong> from the main menu — the AI opponent rolls, chooses moves, and plays cards to try to win, so you can play solo any time.</p>
-          <p>Each player controls <strong>2 tokens</strong>, both starting off-board. Roll a die, then choose which token to move — that choice is the game.</p>
-          <p>A token can't overshoot square 100; it must land exactly on it.</p>
-          <p>Land exactly on an opponent's token to send it back to start — unless that square is <strong class="hl-safe">safe</strong> (ladder bottoms, snake heads, and square 1).</p>
-          <p>You can't stack your own two tokens on one square.</p>
-          <p>Land on a <strong class="hl-card">card square</strong> <span class="inline-icon" data-icon="card"></span> to draw a power-up (max 2 held):</p>
+          <div class="htp-row"><span class="inline-icon" data-icon="trophy"></span><span><strong>Goal:</strong> get both your tokens to square 100 <em>exactly</em> — first there wins.</span></div>
+          <div class="htp-row"><span class="inline-icon" data-icon="dice"></span><span>Roll, then pick <strong>which of your 2 tokens</strong> moves. That choice is the whole game.</span></div>
+          <div class="htp-row"><span class="inline-icon" data-icon="fang"></span><span>Land exactly on an opponent's token to send it home — unless the square is <strong class="hl-safe">safe</strong> (ladder bottoms, snake heads, square 1).</span></div>
+          <div class="htp-row"><span class="inline-icon" data-icon="lock"></span><span>A token on 100 is <strong class="hl-safe">locked in</strong> for good — can't be captured or swapped.</span></div>
+          <div class="htp-row"><span class="inline-icon" data-icon="computer"></span><span>No one to play with? Try <strong>Play vs Computer</strong> from the main menu.</span></div>
+
+          <h3 class="htp-subhead"><span class="inline-icon" data-icon="card"></span>Cards</h3>
+          <p class="htp-hint">Land on a <strong class="hl-card">card square</strong> to draw one (max 2 held):</p>
           <ul>
-            <li><span class="inline-icon" data-icon="shield"></span> <strong>Shield</strong> — automatic/reactive. You don't tap it — it kicks in on its own the moment one of your tokens would be bitten by a snake, keeping the token in place instead of sliding down.</li>
-            <li><span class="inline-icon" data-icon="swap"></span> <strong>Swap</strong> — tap it on your turn <em>instead of</em> rolling; pick one of your tokens and one opponent token to swap positions.</li>
-            <li><span class="inline-icon" data-icon="fastForward"></span> <strong>Double Move</strong> — after you roll, it appears as an extra option next to your token choices; pick it to move both your tokens by the roll instead of just one. If one token is already locked in at 100, it instead sends your other token twice as far (roll × 2).</li>
-            <li><span class="inline-icon" data-icon="trap"></span> <strong>Trap</strong> — tap it on your turn <em>instead of</em> rolling, then tap an empty, ordinary square on the board to rig it. If your opponent's token lands there, a die is rolled and the token is knocked back that many squares ×5 (so 5-30 squares) — Shield won't save them, it only blocks snakes. Traps stay hidden: you'll see your own on the board, but never your opponent's, until one springs.</li>
+            <li><span class="inline-icon" data-icon="shield"></span> <strong>Shield</strong> — automatic. Cancels a snake bite the instant it happens; doesn't stop traps.</li>
+            <li><span class="inline-icon" data-icon="swap"></span> <strong>Swap</strong> — play instead of rolling: swap one of your tokens with an opponent's.</li>
+            <li><span class="inline-icon" data-icon="fastForward"></span> <strong>Double Move</strong> — appears after you roll: move both tokens by the roll (or one token roll×2, if the other's already locked at 100).</li>
+            <li><span class="inline-icon" data-icon="trap"></span> <strong>Trap</strong> — play instead of rolling, then hide it on an empty square. An opponent landing there rolls the die and is knocked back ×5 squares (5–30) — Shield can't stop it. Stays invisible to them until it springs.</li>
           </ul>
-          <p>A token that reaches square 100 is <strong class="hl-safe">locked in</strong> — it can't be captured or swapped away. First player to get <strong>both</strong> tokens to exactly square 100 wins!</p>
-          <p><strong>Falling behind?</strong> If you're trailing by more than 30 combined squares of token progress when you land on a card square, you draw two candidate cards and pick which one to keep instead of getting one at random.</p>
+
+          <div class="htp-row"><span class="inline-icon" data-icon="refresh"></span><span><strong>Trailing by 30+ squares?</strong> Card squares draw you two candidates to choose from instead of one at random.</span></div>
         </div>
         <button id="btn-howtoplay-close" class="btn btn-primary" type="button">Got it</button>
       </div>

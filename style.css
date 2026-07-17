@@ -796,17 +796,6 @@ h2 {
   color: var(--gold);
 }
 
-.btn-copy-code {
-  margin: 4px 0 2px;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.btn-copy-code.btn-copy-code-done {
-  background: rgba(103, 196, 138, 0.18);
-  border-color: var(--host-color);
-  color: var(--host-color);
-}
-
 .waiting-dots .dots,
 .inline-dots {
   display: inline-block;

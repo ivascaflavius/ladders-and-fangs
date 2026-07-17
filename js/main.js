@@ -57,10 +57,8 @@ function updateTabTitleFlash() {
 // auto-pausing on those was reported as too trigger-happy. visibilitychange
 // only fires when the tab itself is actually hidden/backgrounded.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    stopTitleFlash();
-    recoverHostWaitingIfNeeded();
-  } else {
+  if (!document.hidden) stopTitleFlash();
+  else {
     updateTabTitleFlash();
     autoPauseIfInGame();
   }
@@ -471,88 +469,6 @@ async function hostGame() {
   // Waiting for opponent's HELLO; handleIncoming() creates the game state.
 }
 
-// Tapping "Share Invite" opens the OS share sheet (see shareRoomCode()),
-// which backgrounds the tab the instant the player picks WhatsApp/etc. —
-// and on Android in particular, the underlying WebRTC/tracker signaling
-// connection can silently die while backgrounded, leaving the host's room
-// unjoinable even after they switch back (reported: opponent can't connect
-// no matter how long the host waits, but everything works if the code is
-// read out loud instead of shared, i.e. without ever backgrounding the tab).
-// Re-joining the same room code on return refreshes the connection instead
-// of leaving the host stuck on a dead one — the code shown on screen
-// doesn't change, so nothing needs to be re-shared.
-let recoveringHostRoom = false;
-async function recoverHostWaitingIfNeeded() {
-  if (recoveringHostRoom || myPlayer !== 'host' || gameState || !networkRoom) return;
-  if (!el('screen-host-waiting').classList.contains('active')) return;
-  recoveringHostRoom = true;
-  try {
-    const code = networkRoom.roomCode;
-    resetNetwork();
-    const freshRoom = await joinNetworkRoom(code);
-    // The player may have cancelled, or a peer may have connected through
-    // some other path, while this was in flight — don't resurrect a room
-    // they've since left.
-    if (myPlayer !== 'host' || gameState || !el('screen-host-waiting').classList.contains('active')) {
-      try {
-        freshRoom.leave();
-      } catch (err) {
-        /* ignore teardown errors */
-      }
-      return;
-    }
-    networkRoom = freshRoom;
-    wireNetworkEvents();
-  } finally {
-    recoveringHostRoom = false;
-  }
-}
-
-// Builds a link that pre-fills the join code via ?join=CODE (see boot()'s
-// query-param check), so tapping a shared WhatsApp/etc. link drops the
-// recipient straight onto the join screen with the code already typed in.
-function buildInviteLink(code) {
-  const url = new URL(location.href);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('join', code);
-  return url.toString();
-}
-
-// navigator.share() opens the OS share sheet (WhatsApp, Messages, etc.) on
-// mobile; desktop browsers mostly lack it, so we fall back to copying a
-// ready-to-paste invite message to the clipboard instead.
-async function shareRoomCode() {
-  if (!networkRoom) return;
-  const code = networkRoom.roomCode;
-  const url = buildInviteLink(code);
-  const text = `Join my Ladders & Fangs game! Room code: ${code}`;
-  const btn = el('btn-copy-code');
-  const label = el('btn-copy-code-label');
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: 'Ladders & Fangs', text, url });
-      return;
-    }
-    throw new Error('no-share-api');
-  } catch (err) {
-    try {
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      const original = label.textContent;
-      btn.classList.add('btn-copy-code-done');
-      label.textContent = 'Copied!';
-      setTimeout(() => {
-        btn.classList.remove('btn-copy-code-done');
-        label.textContent = original;
-      }, 1600);
-    } catch (clipboardErr) {
-      // Share sheet dismissed by the user, or clipboard access blocked —
-      // either way there's nothing useful left to do but leave the code
-      // visible on screen for a manual copy.
-    }
-  }
-}
-
 async function joinGame(rawCode) {
   const code = normalizeRoomCode(rawCode);
   if (code.length < 4) return;
@@ -583,11 +499,11 @@ async function attemptAutoRejoin() {
   oppPlayer = myPlayer === 'host' ? 'guest' : 'host';
 
   // Host whose tab died/reloaded (e.g. Android discarding a backgrounded tab
-  // after the OS share sheet — see shareRoomCode()) before anyone had
-  // actually joined: there's no live match to "reconnect" to, just the same
-  // wait to resume. Re-enter it exactly like a fresh hostGame() (same code,
-  // same screen, no expiry) rather than the timed reconnect flow below,
-  // which would otherwise give up and wipe the still-good room after 25s
+  // after switching apps or locking the phone) before anyone had actually
+  // joined: there's no live match to "reconnect" to, just the same wait to
+  // resume. Re-enter it exactly like a fresh hostGame() (same code, same
+  // screen, no expiry) rather than the timed reconnect flow below, which
+  // would otherwise give up and wipe the still-good room after 25s
   // for no better reason than nobody happened to join in that window.
   if (myPlayer === 'host' && session.matched === false) {
     el('room-code-display').textContent = session.roomCode;
@@ -1203,7 +1119,6 @@ function bindMenu() {
     clearSession();
     UI.showScreen('screen-menu'); renderMenuStats();
   });
-  el('btn-copy-code').addEventListener('click', shareRoomCode);
 
   const codeInput = el('join-code-input');
   codeInput.addEventListener('input', () => {
@@ -1273,19 +1188,6 @@ function boot() {
   bindGameScreen();
   bindSettingsModal();
   renderIdentityChip();
-
-  // A shared invite link (?join=CODE) takes priority over resuming an old
-  // session — someone tapping a fresh invite clearly wants to join *that*
-  // game, not silently reconnect to whatever they were doing last time.
-  const params = new URLSearchParams(location.search);
-  const joinCode = params.get('join');
-  if (joinCode) {
-    history.replaceState(null, '', location.pathname + location.hash);
-    UI.showScreen('screen-join-enter');
-    const codeInput = el('join-code-input');
-    codeInput.value = normalizeRoomCode(joinCode).slice(0, 5);
-    return;
-  }
 
   const session = loadSession();
   if (session) {

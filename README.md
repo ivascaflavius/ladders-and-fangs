@@ -22,7 +22,7 @@ A strategy twist on Snakes & Ladders, playable P2P with a friend — no server r
 
 ### Host or Join
 
-- **Host a Game** generates a short room code — share it with your opponent.
+- **Host a Game** generates a short room code — read or type it out to your opponent (there's deliberately no "share via link/app" button: on Android, backgrounding the tab to open a share sheet was found to reliably break the in-progress WebRTC handshake, sometimes unrecoverably, so the code is meant to be passed along without ever leaving the tab).
 - **Join a Game** connects you to their code.
 - The **host's** board choice (see Board selection below) is the one used for the match — a joining guest's own pick is ignored.
 - No accounts, no server: connections are made peer-to-peer over WebRTC via [Trystero](https://github.com/dmotz/trystero).

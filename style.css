@@ -234,76 +234,190 @@ h1, h2, .btn {
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
-/* Idle main-menu decoration — a wooden ladder, an ampersand, and a snake
-   (head + a bit of torso) that stay gently "alive": the ladder bounces, the
-   snake's head bobs while its curly forked tongue flicks on a loop. */
-.menu-critters {
+/* Idle main-menu preview — a small 4x4 slice of the real board (same wood
+   frame + checker squares as the in-game board, just scaled down) with a
+   token that loops through walk -> ladder climb -> walk -> snake bite ->
+   reset back to start, so the menu previews actual gameplay instead of
+   abstract decoration. */
+.menu-board-preview {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin: -2px 0 2px;
+  margin: 2px 0 4px;
 }
 
-.menu-amp {
+.mbp-frame {
+  width: min(150px, 42vw);
+  aspect-ratio: 1 / 1;
+  padding: 5px;
+  border-radius: 14px;
+  background: linear-gradient(155deg, var(--wood-1), var(--wood-2) 55%, var(--wood-3));
+  box-shadow:
+    0 0 0 1px rgba(212, 176, 120, 0.4) inset,
+    0 0 0 3px rgba(0, 0, 0, 0.18) inset,
+    0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+.mbp-grid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: repeating-conic-gradient(var(--square-bg) 0% 25%, var(--square-bg-2) 0% 50%) 0 0 / 50% 50%;
+}
+
+/* Square numbers, laid out with the same boustrophedon order as the real
+   board (bottom row left-to-right, next row right-to-left, ...) via plain
+   DOM order + CSS grid auto-placement — no JS needed to compute positions. */
+.mbp-numbers {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  z-index: 1;
+}
+
+.mbp-numbers span {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 2px 3px;
   font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 600;
-  color: var(--gold);
-  text-shadow: 0 2px 10px rgba(212, 176, 120, 0.35);
-  line-height: 1;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  opacity: 0.7;
 }
 
-.menu-ladder-icon {
-  width: 58px;
-  height: 58px;
-  color: var(--ladder-color);
-  filter: drop-shadow(0 0 8px rgba(229, 175, 98, 0.45));
-  animation: menu-ladder-bounce 1.6s ease-in-out infinite;
+/* Both ladders are drawn horizontally in their own SVG (see index.html) and
+   rotated here to point from their bottom square to their top square —
+   `left`/`top` anchor the bottom end, `transform-origin: 0% 50%` pivots the
+   rotation around that same point so it doesn't drift off the square. */
+.mbp-ladder-active {
+  position: absolute;
+  left: 37.5%;
+  /* top is the box's top edge, but transform-origin pivots on its vertical
+     *center* — shift up by half the box height so the pivot (and thus
+     square 2's actual position) lands exactly on top:87.5%, not below it. */
+  top: 83.5%;
+  width: 56%;
+  height: 8%;
+  transform-origin: 0% 50%;
+  transform: rotate(-63.43deg);
+  filter: drop-shadow(0 0 4px rgba(229, 175, 98, 0.4));
 }
 
-.menu-snake-icon {
-  width: 64px;
-  height: 58px;
-  color: var(--snake-color);
-  filter: drop-shadow(0 0 10px rgba(227, 75, 102, 0.45));
+/* Static decoration only — not part of the animated path — so the board
+   reads as a fuller, more balanced game rather than one lone connector. */
+.mbp-ladder-static {
+  position: absolute;
+  left: 62.5%;
+  top: 83.5%;
+  width: 35.4%;
+  height: 8%;
+  transform-origin: 0% 50%;
+  transform: rotate(-45deg);
+  opacity: 0.85;
+  filter: drop-shadow(0 0 3px rgba(229, 175, 98, 0.35));
 }
 
-@keyframes menu-ladder-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+.mbp-snake {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 4px rgba(227, 75, 102, 0.4));
 }
 
-.menu-snake-torso {
-  transform-origin: 25px 22px;
-  animation: menu-tail-wiggle 2.4s ease-in-out infinite;
+.mbp-token {
+  position: absolute;
+  width: 13%;
+  height: 13%;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+  z-index: 2;
 }
 
-@keyframes menu-tail-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-6deg); }
+.mbp-token-host {
+  background: radial-gradient(circle at 35% 30%, #8af0bf, var(--host-color));
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.6),
+    0 0 8px 1px rgba(56, 214, 143, 0.55);
+  left: -8%;
+  top: 87.5%;
+  z-index: 3;
+  animation:
+    mbp-path 9s ease-in-out infinite,
+    mbp-bob 1.3s ease-in-out infinite;
 }
 
-.menu-snake-head-group {
-  transform-origin: 17px 15px;
-  animation: menu-head-bob 2.4s ease-in-out infinite;
+.mbp-token-guest {
+  background: radial-gradient(circle at 35% 30%, #ffd699, var(--guest-color));
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.6),
+    0 0 8px 1px rgba(255, 179, 71, 0.55);
+  left: 87.5%;
+  top: 37.5%;
+  transform: translate(-50%, -50%);
+  animation: mbp-guest-bump 9s ease-in-out infinite;
 }
 
-@keyframes menu-head-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(1.4px) rotate(-3deg); }
+/* Path keyframes (percent of the 9s loop): hold off-board, walk on to square
+   1, walk to the ladder (square 2), climb it to square 11, walk to square 12
+   (the guest's square — see mbp-guest-bump), walk up to the snake's head
+   (square 13), slide down its body to square 8, then snap back to the
+   off-board start (a bite sends you home) and hold there before repeating —
+   the pause is deliberately long (~34% of the loop) so the cycle doesn't
+   feel rushed. */
+@keyframes mbp-path {
+  0%, 4% { left: -8%; top: 87.5%; }
+  13% { left: 12.5%; top: 87.5%; }
+  22% { left: 37.5%; top: 87.5%; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  33% { left: 62.5%; top: 37.5%; }
+  42% { left: 87.5%; top: 37.5%; }
+  51% { left: 87.5%; top: 12.5%; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+  65% { left: 12.5%; top: 62.5%; animation-timing-function: steps(1, end); }
+  66%, 100% { left: -8%; top: 87.5%; }
 }
 
-.menu-snake-tongue {
-  transform-origin: 7px 15.6px;
-  animation: menu-tongue-flick 2.8s ease-in-out infinite;
+@keyframes mbp-bob {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50% { transform: translate(-50%, -50%) translateY(-2px); }
 }
 
-@keyframes menu-tongue-flick {
-  0%, 72%, 100% { opacity: 0; transform: scaleX(0.3); }
-  78% { opacity: 1; transform: scaleX(1); }
-  84% { opacity: 1; transform: scaleX(0.75); }
-  92% { opacity: 1; transform: scaleX(1); }
+/* The guest token rests on square 12 until the host arrives there (42% on
+   mbp-path, above) — right at that moment it gets knocked off the board
+   (flicked aside + faded out), stays gone while the host finishes its loop,
+   then fades back in on its square in time for the next pass. 0% and 100%
+   match so the loop is seamless. */
+@keyframes mbp-guest-bump {
+  0%, 42% {
+    left: 87.5%;
+    top: 37.5%;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+  45% {
+    left: 108%;
+    top: 18%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6) rotate(50deg);
+  }
+  85% {
+    left: 87.5%;
+    top: 37.5%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6) rotate(0deg);
+  }
+  100% {
+    left: 87.5%;
+    top: 37.5%;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
 }
 
 .subtitle {
@@ -2261,7 +2375,20 @@ h2 {
 @media (prefers-reduced-motion: reduce) {
   .snake-eye,
   .panel::before,
-  .confetti-piece {
+  .confetti-piece,
+  .mbp-token {
     animation: none !important;
+  }
+
+  .mbp-token-host {
+    left: 12.5%;
+    top: 87.5%;
+  }
+
+  .mbp-token-guest {
+    left: 87.5%;
+    top: 37.5%;
+    opacity: 1;
+    transform: translate(-50%, -50%);
   }
 }

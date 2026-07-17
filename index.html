@@ -17,24 +17,47 @@
     <section id="screen-menu" class="screen active">
       <div class="panel menu-panel">
         <h1 class="title">Ladders &amp; Fangs</h1>
-        <div class="menu-critters" aria-hidden="true">
-          <svg class="menu-ladder-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M17 3.5v41M31 3.5v41" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>
-            <path d="M17 10.5h14M17 19h14M17 27.5h14M17 36h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-          </svg>
-          <span class="menu-amp">&amp;</span>
-          <svg class="menu-snake-icon" viewBox="-6 0 54 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- torso trails off behind the head; only head + a bit of body visible -->
-            <path class="menu-snake-torso" d="M25.5 22c7.5 2.5 8.5 8 3.5 11.5s-3.5 8.5 3.5 11" stroke="currentColor" stroke-width="7.5" stroke-linecap="round"/>
-            <g class="menu-snake-head-group">
-              <circle class="menu-snake-head" cx="17" cy="15" r="10.5" fill="currentColor"/>
-              <circle cx="13.6" cy="11.6" r="3" fill="#fff8ec"/>
-              <circle cx="12.9" cy="12.1" r="1.4" fill="#1b0d12"/>
-              <path class="menu-snake-fang" d="M8.4 19.4l1 4.6 2.1-3.1z" fill="#fff8ec"/>
-              <path class="menu-snake-fang" d="M12.3 23.2l.6 4.4 2.3-2.9z" fill="#fff8ec"/>
-              <path class="menu-snake-tongue" d="M7 15.6c-2 0-2-1.7-4-1.7s-2 1.9-4 1.5M-1 15.4l-1.9-1.2M-1 15.4l-.5 2" stroke="var(--danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </g>
-          </svg>
+        <!-- Idle main-menu preview: a small 4x4 slice of the real board (numbered
+             like the real one), looping the green token through a
+             walk -> ladder climb -> walk -> snake bite -> reset cycle, bumping
+             the resting orange token off its square along the way. A second
+             ladder + snake sit elsewhere purely as static decoration (not
+             part of the animated path) so the board reads as full/balanced
+             without doubling the animation complexity. -->
+        <div class="menu-board-preview" aria-hidden="true">
+          <div class="mbp-frame">
+            <div class="mbp-grid">
+              <div class="mbp-numbers">
+                <span>16</span><span>15</span><span>14</span><span>13</span>
+                <span>9</span><span>10</span><span>11</span><span>12</span>
+                <span>8</span><span>7</span><span>6</span><span>5</span>
+                <span>1</span><span>2</span><span>3</span><span>4</span>
+              </div>
+              <!-- Ladder 2->11 (diagonal): drawn horizontally in its own viewBox,
+                   then rotated in CSS to point from square 2 to square 11. -->
+              <svg class="mbp-ladder mbp-ladder-active" viewBox="0 0 140 20" preserveAspectRatio="none">
+                <path d="M2 3h136M2 17h136" stroke="var(--ladder-color)" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M18 3v14M46 3v14M74 3v14M102 3v14M130 3v14" stroke="var(--ladder-color)" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+              <!-- Ladder 3->5 (diagonal), static decoration only. -->
+              <svg class="mbp-ladder mbp-ladder-static" viewBox="0 0 88 20" preserveAspectRatio="none">
+                <path d="M2 3h84M2 17h84" stroke="var(--ladder-color)" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M12 3v14M32 3v14M52 3v14M72 3v14" stroke="var(--ladder-color)" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+              <svg class="mbp-snake" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <!-- Snake 13->8 (in play). -->
+                <path d="M87.5 12.5 C 64 21, 54 30, 49 41 C 41 56, 24 55, 12.5 62.5" fill="none" stroke="var(--snake-color)" stroke-width="4.4" stroke-linecap="round"/>
+                <circle cx="87.5" cy="12.5" r="4.6" fill="var(--snake-color)"/>
+                <circle cx="85.5" cy="10.6" r="1.1" fill="#fff8ec"/>
+                <!-- Snake 15->9, static decoration only. -->
+                <path d="M37.5 12.5 C 22 19, 24 30, 12.5 37.5" fill="none" stroke="var(--snake-color)" stroke-width="3.2" stroke-linecap="round" opacity="0.85"/>
+                <circle cx="37.5" cy="12.5" r="3.4" fill="var(--snake-color)" opacity="0.85"/>
+                <circle cx="35.7" cy="10.9" r="0.8" fill="#fff8ec" opacity="0.85"/>
+              </svg>
+              <div class="mbp-token mbp-token-guest"></div>
+              <div class="mbp-token mbp-token-host"></div>
+            </div>
+          </div>
         </div>
         <p class="subtitle">A strategy twist on Snakes &amp; Ladders</p>
         <button id="btn-menu-identity" class="identity-chip" type="button" aria-label="Change player name">

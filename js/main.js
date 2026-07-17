@@ -102,9 +102,16 @@ let isPaused = false;
 let remoteOpponentPaused = false;
 
 // ---------------------------------------------------------------- session persistence
-function saveSession(roomCode, role) {
+// matched: false only for a host who's saved *before* anyone has actually
+// joined (see hostGame()) — attemptAutoRejoin() branches on this so a host
+// whose tab died/reloaded while still waiting on the very first opponent
+// resumes that same wait, instead of being routed through the "reconnect to
+// an already-live match within 25s or give up" flow further down, which was
+// silently wiping the room (and the still-valid, already-shared code) just
+// because nobody happened to join in that particular 25-second window.
+function saveSession(roomCode, role, matched = true) {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ roomCode, role }));
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ roomCode, role, matched }));
   } catch (err) {
     /* ignore */
   }
@@ -289,6 +296,7 @@ function handleIncoming(data) {
       gameState = Game.createInitialState(Settings.getPlayerName(), data.name, Settings.getBoardId());
       send({ type: 'HELLO', name: Settings.getPlayerName() });
       send({ type: 'SYNC_STATE', state: gameState });
+      if (networkRoom) saveSession(networkRoom.roomCode, 'host', true);
       enterGameScreen();
     }
     return;
@@ -459,7 +467,7 @@ async function hostGame() {
   myPlayer = 'host';
   oppPlayer = 'guest';
   wireNetworkEvents();
-  saveSession(code, 'host');
+  saveSession(code, 'host', false);
   // Waiting for opponent's HELLO; handleIncoming() creates the game state.
 }
 
@@ -573,8 +581,29 @@ async function attemptAutoRejoin() {
   resetNetwork();
   myPlayer = session.role;
   oppPlayer = myPlayer === 'host' ? 'guest' : 'host';
-  isRejoining = true;
 
+  // Host whose tab died/reloaded (e.g. Android discarding a backgrounded tab
+  // after the OS share sheet — see shareRoomCode()) before anyone had
+  // actually joined: there's no live match to "reconnect" to, just the same
+  // wait to resume. Re-enter it exactly like a fresh hostGame() (same code,
+  // same screen, no expiry) rather than the timed reconnect flow below,
+  // which would otherwise give up and wipe the still-good room after 25s
+  // for no better reason than nobody happened to join in that window.
+  if (myPlayer === 'host' && session.matched === false) {
+    el('room-code-display').textContent = session.roomCode;
+    UI.showScreen('screen-host-waiting');
+    try {
+      networkRoom = await joinNetworkRoom(session.roomCode);
+      wireNetworkEvents();
+    } catch (err) {
+      resetNetwork();
+      clearSession();
+      UI.showScreen('screen-menu'); renderMenuStats();
+    }
+    return;
+  }
+
+  isRejoining = true;
   el('join-connecting-code').textContent = session.roomCode;
   UI.showScreen('screen-join-connecting');
 

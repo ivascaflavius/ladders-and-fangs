@@ -182,16 +182,19 @@ export function renderCardHand(state, myPlayer, onPlayCard) {
 
 // ---------------------------------------------------------------- log
 let lastLogLen = 0;
+// The log is append-only within a match (game.js never rewrites earlier
+// entries), so only the new entries since the last render need DOM nodes —
+// clearing and rebuilding the *entire* history on every single new line
+// would make a long match's log panel do O(n) work per entry, i.e. O(n^2)
+// DOM churn over the course of the game, for no benefit since nothing
+// earlier ever changes.
 export function renderLog(state) {
   const logEl = el('event-log');
   if (state.log.length === lastLogLen) return;
-  lastLogLen = state.log.length;
-  logEl.innerHTML = '';
-  // Full history is retained (game.js no longer caps it) so the panel scrolls
-  // through everything since the start of the match.
   const hostName = state.players.host.name;
   const guestName = state.players.guest.name;
-  state.log.forEach((entry) => {
+  for (let i = lastLogLen; i < state.log.length; i++) {
+    const entry = state.log[i];
     const div = document.createElement('div');
     const isTurn = entry.text.startsWith('Turn ');
     let className = isTurn ? 'log-entry log-entry-turn' : 'log-entry';
@@ -212,12 +215,15 @@ export function renderLog(state) {
       div.textContent = entry.text;
     }
     logEl.appendChild(div);
-  });
+  }
+  lastLogLen = state.log.length;
   logEl.scrollTop = logEl.scrollHeight;
 }
 
 export function resetLogTracking() {
   lastLogLen = 0;
+  const logEl = el('event-log');
+  if (logEl) logEl.innerHTML = '';
 }
 
 // ---------------------------------------------------------------- transient center-screen toast

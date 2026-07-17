@@ -412,6 +412,37 @@ function spawnParticles(square, colorVar, count = 10) {
   setTimeout(() => burst.remove(), 700);
 }
 
+// A small confetti pop right on the finish square when a token locks in at
+// 100 — same "throwaway absolutely-positioned span" trick as spawnParticles,
+// but with rectangular multi-color pieces that tumble/spin like real
+// confetti instead of round single-color sparks, so reaching the finish
+// reads as a distinctly bigger deal than a routine ladder/capture.
+const LOCK_IN_CONFETTI_COLORS = ['var(--host-color)', 'var(--guest-color)', 'var(--gold)', '#fff3d6'];
+
+function spawnLockInConfetti(square, count = 18) {
+  if (!tokensLayerEl) return;
+  const { x, y } = squareCenterPercent(square);
+  const burst = document.createElement('div');
+  burst.className = 'particle-burst';
+  burst.style.left = `${x}%`;
+  burst.style.top = `${y}%`;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('span');
+    p.className = 'confetti-spark';
+    const angle = Math.random() * 360;
+    const dist = 22 + Math.random() * 28;
+    const rad = (angle * Math.PI) / 180;
+    p.style.setProperty('--dx', `${Math.cos(rad) * dist}px`);
+    p.style.setProperty('--dy', `${Math.sin(rad) * dist - 12}px`);
+    p.style.setProperty('--spin', `${(Math.random() - 0.5) * 540}deg`);
+    p.style.background = LOCK_IN_CONFETTI_COLORS[i % LOCK_IN_CONFETTI_COLORS.length];
+    p.style.animationDelay = `${Math.random() * 60}ms`;
+    burst.appendChild(p);
+  }
+  tokensLayerEl.appendChild(burst);
+  setTimeout(() => burst.remove(), 950);
+}
+
 function flashBoard() {
   if (!boardEl) return;
   boardEl.classList.remove('shake');
@@ -474,6 +505,14 @@ export async function animateTrace(trace) {
   touched.forEach((key) => {
     const t = tokenEls[key];
     if (t) bounceSettle(t);
+  });
+  // A token can only ever reach 100 once (it locks in for good, per game.js
+  // rules) — so "touched and now sitting on 100" is exactly "just locked in
+  // this trace", no extra bookkeeping needed to avoid re-firing on it.
+  touched.forEach((key) => {
+    if (lastSquareByToken[key] === BoardData.LAST_SQUARE) {
+      spawnLockInConfetti(BoardData.LAST_SQUARE);
+    }
   });
 }
 

@@ -1464,6 +1464,22 @@ h2 {
   100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
 }
 
+.confetti-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 8px;
+  margin: -4px -2.5px;
+  border-radius: 1px;
+  animation: confetti-spark-fly 0.75s ease-out forwards;
+}
+
+@keyframes confetti-spark-fly {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--spin)); opacity: 0; }
+}
+
 @keyframes pulse {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -50%) scale(1.18); }
